@@ -1,1269 +1,593 @@
-/**
- * 쉽고 빠르게 오목을 만들자
- * 버그 있으면 hbhj4633@naver.com로 메일좀 보내주세요
- * @author saroro<hbhj4633@naver.com>
- */
-(function (){
-    "use strict";
-    const PutResult = require("./ActionClass/Action");
-    const {Occupied, InvalidPosition, PutError, Forbid33, Forbid44, Forbid6, Forbid, BlackWins, WhiteWins, PutComplete,Undo} = PutResult;
-    function Omok(){
-        let isWin = false;
-        const EMPTYSTONE = 0;
-        const BLACKSTONE = 1;
-        const WHITESTONE = 2;
-        const BOARDSIZE = 15;
-        const CODE = "ABCDEFGHIJKLMNOP";
-        let turn = 1;
-        let board = [];
-        let boardStack = [];
-        let rule = {
+(function() {
+    const {Occupied, InvalidPosition, PutError, Forbid33, Forbid44, Forbid6, Forbid, BlackWins, WhiteWins, PutComplete, Undo} = require("./ActionClass");
+    const EMPTYSTONE = 0;
+    const BLACKSTONE = 1;
+    const WHITESTONE = 2;
+    const BOARDSIZE = 15;
+    const CODE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const DIRECTION = [
+        [1, 0],
+        [0, 1],
+        [1, 1],
+        [1, -1]
+    ]
+
+    function Omok() {
+        this.turn = 1;
+        this.board = Array(BOARDSIZE).fill().map(v => Array(BOARDSIZE).fill(0));
+        this.boardStack = [];
+        this.forbidZone = [];
+        this.rule = {
             "sixWin" : [false,true],
             "allow6" : [false,true],
             "allow44" : [false,true],
             "allow33" : [false,true]
         }
-        let ruleName = "renju";
-        let isBlackTurn = true;
+        this.ruleName = "renju";
+        this.isBlackTurn = true;
+        this.isWin = false
+    }
 
-        /**
-         * 보드 초기화 할때 사용
-         * @return void
-         */
-        function resetBoard(){
-            turn = 1;
-            board = [];
-            boardStack = [];
-            isBlackTurn = true;
-            isWin = false;
-            for(let i = 0; i<15;i++){
-                board.push(Array(15).fill(0,0,15));
+    /**
+    * 보드 초기화 할때 사용
+    * @return void
+    */
+    Omok.prototype.reset = function() {
+        this.turn = 1
+        this.board = Array(BOARDSIZE).fill().map(v => Array(BOARDSIZE).fill(0));
+        this.boardStack = []
+        this.isBlackTurn = true
+        this.isWin = false
+    }
+
+    /**
+    * 착수 할 수 있는 위치인지 확인
+    * @param {number} x
+    * @param {number} y
+    */
+    Omok.prototype.isSetStone = function(x, y) {
+        return x >= 0 && y >= 0 && x < BOARDSIZE && y < BOARDSIZE
+    }
+
+    /**
+    * 비어있는지 확인
+    * @param {number} x
+    * @param {number} y
+    */
+    Omok.prototype.isEmpty = function(x, y) {
+        return this.isSetStone(x, y) && this.board[x][y] === EMPTYSTONE
+    }
+
+    /**
+    * 33 인지 검사
+    * @param {number} x
+    * @param {number} y
+    * @param {1,2} stone
+    * @return {boolean}
+    */
+    Omok.prototype.isDoubleThree = function(x, y, stone) {
+        if(typeof x === "string") {
+            let cord = this.changeCordtoXY(x)
+            if(!cord) {
+                return new InvalidPosition() 
             }
+            x = cord[0]
+            y = cord[1]
+            stone = this.isBlackTurn ? BLACKSTONE : WHITESTONE
         }
-        resetBoard();
-        /**
-         * 돌 위치에다가 착수
-         * @param {number}x
-         * @param {number}y
-         * @param {0,1,2}stone
-         */
-        function setStone(x,y,stone){
-            if(( x <0 || y <0 )|| ( x>=BOARDSIZE || y>=BOARDSIZE) ){
-                return false;
-            }
-            board[x][y]=stone;
-            return true;
+        if(!this.isEmpty(x, y)) {
+            return false
         }
-
-        /**
-         * 33 인지 검사
-         * @param {number} x
-         * @param {number} y
-         * @param {1,2}stone
-         * @return {boolean}
-         */
-        function isDoubleThree(x,y,stone){
-            if(board?.[x]?.[y] !== EMPTYSTONE){
-                return false;
-            }
-            else if(isFive(x,y,stone)){
-                return false;
-            }
-            else if(isOverLine(x,y,stone)){
-                return false;
-            }
-            else if(rule.allow33[stone-1]){
-                return false;
-            }
-            let countThree = 0;
-
-            for(let  i = 1 ; i<=4;i++){
-                if(isOpenThree(x,y,stone,i)){
-                    countThree +=1;
-                }
-            }
-            return countThree >=2;
-
+        else if(this.isFive(x, y, stone)) {
+            return false
         }
-        /**
-         * 44 인지 검사
-         * @param {number} x
-         * @param {number} y
-         * @param {1,2}stone
-         * @return {boolean}
-         */
-        function isDoubleFour(x,y,stone){
-            if(board?.[x]?.[y] !== EMPTYSTONE){
-                return false;
-            }
-            else if(isFive(x,y,stone)){
-                return false;
-            }
-            else if(isOverLine(x,y,stone)){
-                return false;
-            }
-            else if(rule.allow44[stone-1]){
-                return false;
-            }
-            let countFour = 0;
-            for(let i = 1; i<=4 ; i++){
-                if(isOpenFour(x,y,stone,i) ===2){
-                    countFour +=2;
-                }
-
-                else if(isFour(x,y,stone,i)){
-                    countFour +=1;
-                }
-            }
-
-            return countFour>=2;
+        else if(this.isOverLine(x, y, stone)) {
+            return false
         }
-        /**
-         * 열린 3인지 검사 열린 3 정의는 꺼무위키 참고
-         * @param {number} x
-         * @param {number} y
-         * @param {1,2}stone
-         * @param {1,2,3,4}dir
-         * @return {boolean}
-         */
-        function isOpenThree(x,y,stone,dir){
-            if(isFive(x,y,stone)){
-                return false;
-            }
-            else if(isOverLine(x,y,stone)){
-                return false;
-            }
-            setStone(x,y,stone);
-            if(dir ===1){
-                let i = x-1;
-                while(i >=0){
-                    if(board?.[i]?.[y] === stone){
-                        i--;
-                    }
-                    else if(board?.[i]?.[y] === EMPTYSTONE){
-                        if(checkFakeThree(i,y,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-
-                i = x+1;
-                while(i < BOARDSIZE){
-                    if(board?.[i]?.[y] === stone){
-                        i++;
-                    }
-                    else if(board?.[i]?.[y] === EMPTYSTONE){
-                        if(checkFakeThree(i,y,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-                }
-            }
-
-            else if(dir ===2){
-                let j = y-1;
-                while(j >=0){
-                    if(board?.[x]?.[j] === stone){
-                        j--;
-                    }
-                    else if(board?.[x]?.[j] === EMPTYSTONE){
-                        if(checkFakeThree(x,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-
-                j = y+1;
-                while(j < BOARDSIZE){
-                    if(board?.[x]?.[j] === stone){
-                        j++;
-                    }
-                    else if(board?.[x]?.[j] === EMPTYSTONE){
-                        if(checkFakeThree(x,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-                }
-            }
-
-            else if(dir ===3){
-                let i = x-1;
-                let j = y-1;
-
-                while(i>=0 &&j >=0){
-                    if(board?.[i]?.[j] === stone){
-                        i--;
-                        j--;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(checkFakeThree(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-                i = x+1;
-                j = y+1;
-                while(i< BOARDSIZE &&j < BOARDSIZE){
-                    if(board?.[i]?.[j] === stone){
-                        i++;
-                        j++;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(checkFakeThree(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-                }
-            }
-
-            else if(dir ===4){
-                let i = x-1;
-                let j = y+1;
-                while(i>=0 && j <BOARDSIZE){
-                    if(board?.[i]?.[j] === stone){
-                        i--;
-                        j++;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(checkFakeThree(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-                i = x+1;
-                j = y-1;
-                while(i< BOARDSIZE &&j >=0){
-                    if(board?.[i]?.[j] === stone){
-                        i++;
-                        j--;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(checkFakeThree(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-                }
-            }
-
-            setStone(x,y,EMPTYSTONE);
-            return false;
+        else if(this.rule.allow33[stone-1]) {
+            return false
         }
 
-        /**
-         * 거짓금수 체크용
-         * @param {number}x
-         * @param {number}y
-         * @param {1,2}stone
-         * @param {1,2,3,4}dir
-         * @return {boolean}
-         */
-        function checkFakeThree(x,y,stone,dir){
-            return (isOpenFour(x,y,stone,dir) ===1 )&& !isDoubleFour(x,y,stone) && !isDoubleThree(x,y,stone);
+        let countThree = 0
+        for(let i = 0; i <= 3; i++) {
+            if(this.isOpenThree(x, y, stone, i)) {
+                countThree += 1
+            }
+        }
+        return countThree >= 2
+    }
+
+    /**
+    * 44 인지 검사
+    * @param {number} x
+    * @param {number} y
+    * @param {1,2} stone
+    * @return {boolean}
+    */
+    Omok.prototype.isDoubleFour = function(x, y, stone) {
+        if(typeof x === "string") {
+            let cord = this.changeCordtoXY(x)
+            if(!cord) {
+                return new InvalidPosition() 
+            }
+            x = cord[0]
+            y = cord[1]
+            stone = this.isBlackTurn ? BLACKSTONE : WHITESTONE
+        }
+        if(!this.isEmpty(x, y)) {
+            return false
+        }
+        else if(this.isFive(x, y, stone)) {
+            return false
+        }
+        else if(this.isOverLine(x, y, stone)) {
+            return false
+        }
+        else if(this.rule.allow44[stone-1]) {
+            return false
         }
 
-        /**
-         * 4인지 검사 (닫힌거든 열린거든 상관 무)
-         * @param {number} x
-         * @param {number}y
-         * @param {1,2}stone
-         * @param {1,2,3,4}dir
-         * @return {boolean}
-         */
-        function isFour(x,y,stone,dir){
-            if(board?.[x]?.[y] !== EMPTYSTONE){
-                return false;
+        let countFour = 0;
+        for(let i = 0; i <= 3; i++){
+            if(this.isOpenFour(x, y, stone, i) === 2){
+                countFour += 2;
             }
-            else if(isFive(x,y,stone)){
-                return false;
+            else if(this.isFour(x, y, stone, i)){
+                countFour += 1;
             }
-            else if(isOverLine(x,y,stone)){
-                return false;
-            }
-            setStone(x,y,stone);
-            if(dir ===1){
-                let i = x-1;
-                while(i>=0){
-                    if(board?.[i]?.[y] ===stone){
-                        i--;
-                    }
-                    else if(board?.[i]?.[y] === EMPTYSTONE){
-                        if(isFive(i,y,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-                i = x+1;
-                while(i < BOARDSIZE){
-                    if(board?.[i]?.[y] ===stone){
-                        i++;
-                    }
-                    else if(board?.[i]?.[y] === EMPTYSTONE){
-                        if(isFive(i,y,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-                setStone(x,y,EMPTYSTONE);
-                return false;
-            }
-            else if(dir ===2){
-                let j = y-1;
-                while(j>=0){
-                    if(board?.[x]?.[j] ===stone){
-                        j--;
-                    }
-                    else if(board?.[x]?.[j] === EMPTYSTONE){
-                        if(isFive(x,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-                j = y+1;
-                while(j < BOARDSIZE){
-                    if(board?.[x]?.[j] ===stone){
-                        j++;
-                    }
-                    else if(board?.[x]?.[j] === EMPTYSTONE){
-                        if(isFive(x,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-                setStone(x,y,EMPTYSTONE);
-                return false;
-            }
-
-            else if(dir ===3){
-                let i = x-1;
-                let j = y-1;
-                while(i>=0 &&j>=0){
-                    if(board?.[i]?.[j] ===stone){
-                        i--;
-                        j--;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(isFive(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-                i = x+1;
-                j = y+1;
-                while(i<BOARDSIZE &&j < BOARDSIZE){
-                    if(board?.[i]?.[j] ===stone){
-                        i++;
-                        j++;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(isFive(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-                setStone(x,y,EMPTYSTONE);
-                return false;
-            }
-            else if(dir ===4){
-                let i = x-1;
-                let j = y+1;
-                while(i>=0 &&j<BOARDSIZE){
-                    if(board?.[i]?.[j] ===stone){
-                        i--;
-                        j++;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(isFive(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-                i = x+1;
-                j = y-1;
-                while(i<BOARDSIZE &&j >=0){
-                    if(board?.[i]?.[j] ===stone){
-                        i++;
-                        j--;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(isFive(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return true;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-
-                }
-                setStone(x,y,EMPTYSTONE);
-                return false;
-            }
-            setStone(x,y,EMPTYSTONE);
-            return false;
         }
-        /**
-         *열린 4 검사, 2일 때 44임  (O,X,O,ㅁ,X,O ㅁ 자리를 검사하기 위해서)  1인 경우는 열린 3을 검사하기 위해 사용
-         * @param {number}x
-         * @param {number}y
-         * @param {1,2}stone
-         * @param {1,2,3,4}dir
-         * @return {0,1,2}
-         */
-        function isOpenFour(x,y,stone,dir){
-            if(board?.[x]?.[y] !== EMPTYSTONE){
-                return 0;
+        return countFour >= 2;
+    }
+
+    /**
+    * 열린 3인지 검사 열린 3 정의는 꺼무위키 참고
+    * @param {number} x
+    * @param {number} y
+    * @param {1,2} stone
+    * @param {1,2,3,4} dir
+    * @return {boolean}
+    */
+    Omok.prototype.isOpenThree = function(x, y, stone, dir) {
+        this.board[x][y] = stone
+        let step = DIRECTION[dir]
+        for(let sign = -1; sign < 2; sign += 2) {
+            let i = x + step[0] * sign
+            let j = y + step[1] * sign
+            while(this.isSetStone(i, j)) {
+                if(this.board[i][j] === stone) {
+                    i += step[0] * sign
+                    j += step[1] * sign
+                }
+                else if(this.board[i][j] === EMPTYSTONE) {
+                    if(this.checkFakeThree(i, j, stone, dir)) {
+                        this.board[x][y] = EMPTYSTONE
+                        return true
+                    } 
+                    else {
+                        break
+                    }
+                }
+                else {
+                    break
+                }
             }
-            else if(isFive(x,y,stone)){
-                return 0;
-            }
-            else if(isOverLine(x,y,stone)){
-                return 0;
-            }
-            setStone(x,y,stone);
-            let nLine = 1;
-            if(dir ===1){
-                let i = x-1;
-                while(i>= -1){
-                    if(board?.[i]?.[y] === stone){
-                        i--;
-                        nLine++;
-                    }
-                    else if(board?.[i]?.[y] === EMPTYSTONE){
-                        if(!isFive(i,y,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return 0;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        setStone(x,y,EMPTYSTONE);
-                        return 0;
-                    }
-
-                }
-
-                i = x+1;
-                while(i<BOARDSIZE){
-                    if(board?.[i]?.[y] === stone){
-                        i++;
-                        nLine++;
-                    }
-                    else if(board?.[i]?.[y] === EMPTYSTONE){
-                        if(isFive(i,y,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return nLine===4 ? 1:2;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-                }
-                setStone(x,y,EMPTYSTONE);
-                return 0;
-            }
-
-            else if(dir ===2){
-                let j = y-1;
-                while(j>= -1){
-                    if(board?.[x]?.[j] === stone){
-                        j--;
-                        nLine++;
-                    }
-                    else if(board?.[x]?.[j] === EMPTYSTONE){
-                        if(!isFive(x,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return 0;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        setStone(x,y,EMPTYSTONE);
-                        return 0;
-                    }
-
-                }
-
-                j = y+1;
-                while(j<BOARDSIZE){
-                    if(board?.[x]?.[j] === stone){
-                        j++;
-                        nLine++;
-                    }
-                    else if(board?.[x]?.[j] === EMPTYSTONE){
-                        if(isFive(x,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return nLine===4 ? 1:2;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-                }
-                setStone(x,y,EMPTYSTONE);
-                return 0;
-            }
-
-            else if(dir ===3){
-                let i = x-1;
-                let j = y-1;
-                while( i >= -1 && j>= -1){
-                    if(board?.[i]?.[j] === stone){
-                        i--;
-                        j--;
-                        nLine++;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(!isFive(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return 0;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        setStone(x,y,EMPTYSTONE);
-                        return 0;
-                    }
-
-                }
-                i = x+1;
-                j = y+1;
-                while(i<BOARDSIZE && j<BOARDSIZE){
-                    if(board?.[i]?.[j] === stone){
-                        i++;
-                        j++;
-                        nLine++;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(isFive(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return nLine===4 ? 1:2;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-                }
-                setStone(x,y,EMPTYSTONE);
-                return 0;
-            }
-
-            else if(dir ===4){
-                let i = x-1;
-                let j = y+1;
-                while( i >= -1 && j<BOARDSIZE){
-                    if(board?.[i]?.[j] === stone){
-                        i--;
-                        j++;
-                        nLine++;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(!isFive(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return 0;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        setStone(x,y,EMPTYSTONE);
-                        return 0;
-                    }
-
-                }
-                i = x+1;
-                j = y-1;
-                while(i<BOARDSIZE && j>=-1){
-                    if(board?.[i]?.[j] === stone){
-                        i++;
-                        j--;
-                        nLine++;
-                    }
-                    else if(board?.[i]?.[j] === EMPTYSTONE){
-                        if(isFive(i,j,stone,dir)){
-                            setStone(x,y,EMPTYSTONE);
-                            return nLine===4 ? 1:2;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else{
-                        break;
-                    }
-                }
-                setStone(x,y,EMPTYSTONE);
-                return 0;
-            }
-            setStone(x,y,EMPTYSTONE);
-            return 0;
         }
-        /**
-         * 오목인지 아닌지 검사
-         * @param {number} x x좌표
-         * @param {number}y y좌표
-         * @param {1,2}stone
-         * @param {number}dir
-         * @return {boolean}
-         */
-        function isFive(x,y,stone,dir=15){
-            return checkFiveOrOverLine(x,y,stone,dir) ===1;
+        this.board[x][y] = EMPTYSTONE
+        return false
+    }
+
+    /**
+    * 거짓금수 체크용
+    * @param {number} x
+    * @param {number} y
+    * @param {1,2} stone
+    * @param {1,2,3,4} dir
+    * @return {boolean}
+    */
+    Omok.prototype.checkFakeThree = function(x, y, stone, dir) {
+        if(this.isOpenFour(x, y, stone, dir) !== 1) {
+            return false
         }
-        /**
-         * 장목인지 아닌지 검사
-         * @param {number} x x좌표
-         * @param {number }y y좌표
-         * @param {1,2}stone
-         * @param {number}dir
-         * @return {boolean}
-         */
-        function isOverLine(x,y,stone,dir =15){
-            return checkFiveOrOverLine(x,y,stone,dir) ===2;
+        else if(this.isDoubleFour(x, y, stone)) {
+            return false
         }
-        /**
-         * 오목 장목 여부 검사
-         * @param {number} x x좌표
-         * @param {number }y y좌표
-         * @param {1,2}stone
-         * @param {number}dir
-         * @return {0,1,2}
-         */
-        function checkFiveOrOverLine(x,y,stone,dir = 15){
-            let findDir = 0;
-            let isOverLine = false;
-            if(board?.[x]?.[y]  !== EMPTYSTONE){
-                return 0;
-            }
-            if(dir ===15){
-                findDir = 15
-            }
-            else{
-                findDir = 1<< (dir-1);
-            }
-            setStone(x,y,stone);
-            let nLine = 1;
-            if(findDir & 1){
-                nLine = 1;
-                let i = x-1;
-                while(i >= 0){
-                    if(board?.[i--]?.[y]=== stone){
-                        nLine++;
-                    }
-                    else{
-                        break;
-                    }
-                }
-                i = x+1;
-                while(i <BOARDSIZE){
-                    if(board?.[i++]?.[y]=== stone){
-                        nLine++;
-                    }
-                    else{
-                        break;
-                    }
-                }
-                const checkFive = checkIsFive(stone,nLine);
-                if(  checkFive ===1 ){
-                    setStone(x,y,EMPTYSTONE);
-                    return 1;
-                }
-                else if(checkFive ===2){
-                    isOverLine = true;
-                }
-            }
-            if(findDir & 2){
-                nLine = 1;
-                let j = y-1;
-                while(j >= 0){
-                    if(board?.[x]?.[j--]=== stone){
-                        nLine++;
-                    }
-                    else{
-                        break;
-                    }
-                }
-                j = y+1;
-                while(j <BOARDSIZE){
-                    if(board?.[x]?.[j++]=== stone){
-                        nLine++;
-                    }
-                    else{
-                        break;
-                    }
-                }
-                const checkFive = checkIsFive(stone,nLine);
-                if(  checkFive ===1 ){
-                    setStone(x,y,EMPTYSTONE);
-                    return 1;
-                }
-                else if(checkFive ===2){
-                    isOverLine = true;
-                }
-            }
-
-            if(findDir &4){
-                nLine = 1;
-                let i = x-1;
-                let j = y-1;
-                while( i>=0&&j >= 0){
-                    if(board?.[i--]?.[j--]=== stone){
-                        nLine++;
-                    }
-                    else{
-                        break;
-                    }
-                }
-                i = x+1;
-                j = y+1;
-                while(i < BOARDSIZE &&j <BOARDSIZE){
-                    if(board?.[i++]?.[j++]=== stone){
-                        nLine++;
-                    }
-                    else{
-                        break;
-                    }
-                }
-                const checkFive = checkIsFive(stone,nLine);
-                if(  checkFive ===1 ){
-                    setStone(x,y,EMPTYSTONE);
-                    return 1;
-                }
-                else if(checkFive ===2){
-                    isOverLine = true;
-                }
-            }
-            if(findDir &8){
-                nLine = 1;
-                let i = x-1;
-                let j = y+1;
-                while( i>=0 &&j <BOARDSIZE){
-                    if(board?.[i--]?.[j++]=== stone){
-                        nLine++;
-                    }
-                    else{
-                        break;
-                    }
-                }
-                i = x+1;
-                j = y-1;
-                while(i< BOARDSIZE &&j >= 0){
-                    if(board?.[i++]?.[j--]=== stone){
-                        nLine++;
-                    }
-                    else{
-                        break;
-                    }
-                }
-                const checkFive = checkIsFive(stone,nLine);
-                if(  checkFive ===1 ){
-                    setStone(x,y,EMPTYSTONE);
-                    return 1;
-                }
-                else if(checkFive ===2){
-                    isOverLine = true;
-                }
-            }
-            setStone(x,y,EMPTYSTONE);
-            return isOverLine ? 2:0;
+        else if(this.isDoubleThree(x, y, stone)) {
+            return false
         }
+        return true
+    }
 
-
-        /**
-         *장목인지 오목인지 검사
-         * @param stone 현재 돌 색
-         * @param nLine 연결된 개수
-         * @return {0,1,2}  0아무것도 아님 1 오목 2 장목(육목 이상)
-         */
-        function checkIsFive(stone,nLine){
-            if(nLine >=5){
-                if(nLine ===5 || rule.sixWin[stone-1] ){
-                    return 1;
+    /**
+    * 4인지 검사 (닫힌거든 열린거든 상관 무)
+    * @param {number} x
+    * @param {number} y
+    * @param {1,2} stone
+    * @param {1,2,3,4} dir
+    * @return {boolean}
+    */
+    Omok.prototype.isFour = function(x, y, stone, dir) {
+        this.board[x][y] = stone
+        let step = DIRECTION[dir]
+        for(let sign = -1; sign < 2; sign += 2) {
+            let i = x + step[0] * sign
+            let j = y + step[1] * sign
+            while(this.isSetStone(i, j)) {
+                if(this.board[i][j] === stone) {
+                    i += step[0] * sign
+                    j += step[1] * sign
                 }
-                else{
-                    return 2;
+                else if(this.board[i][j] === EMPTYSTONE) {
+                    if(this.isFive(i, j, stone, dir)) {
+                        this.board[x][y] = EMPTYSTONE
+                        return true
+                    } 
+                    else {
+                        break
+                    }
+                }
+                else {
+                    break
                 }
             }
-            return 0;
-
         }
+        this.board[x][y] = EMPTYSTONE
+        return false
+    }
 
-        function makeImage(showForbid  ){
-            if(isWin){
-                showForbid =false;
+    /**
+    *열린 4 검사, 2일 때 44임  (O,X,O,ㅁ,X,O ㅁ 자리를 검사하기 위해서)  1인 경우는 열린 3을 검사하기 위해 사용
+    * @param {number} x
+    * @param {number} y
+    * @param {1,2} stone
+    * @param {1,2,3,4} dir
+    * @return {0,1,2}
+    */
+    Omok.prototype.isOpenFour = function(x, y, stone, dir) {
+        this.board[x][y] = stone
+        let nLine = 1
+        let step = DIRECTION[dir]
+        for(let sign = -1; sign < 2; sign += 2) {
+            let i = x + step[0] * sign
+            let j = y + step[1] * sign
+            while(this.isSetStone(i, j)) {
+                if(this.board[i][j] === stone) {
+                    i += step[0] * sign
+                    j += step[1] * sign
+                    nLine++
+                }
+                else if(this.board[i][j] === EMPTYSTONE) {
+                    if(sign === -1 && !this.isFive(i, j, stone, dir)) {
+                        this.board[x][y] = EMPTYSTONE
+                        return 0
+                    }
+                    else if(sign === 1 && this.isFive(i, j, stone, dir)) {
+                        this.board[x][y] = EMPTYSTONE
+                        return nLine === 4 ? 1 : 2
+                    } 
+                    else {
+                        break
+                    }
+                }
+                else {
+                    this.board[x][y] = EMPTYSTONE
+                    return 0
+                }
             }
-            let url = "https://saroro.dev/omok/image/";
-            for(let j = 0; j<BOARDSIZE; j++){
-                for(let i = 0; i<BOARDSIZE; i++){
-                    if(board[i][j] ===BLACKSTONE){
-                        url +="b";
-                        continue;
-                    }
-                    else if(board[i][j] ===WHITESTONE){
-                        url += "w";
-                        continue;
-                    }
+        }
+        this.board[x][y] = EMPTYSTONE
+        return 0
+    }
 
-                    if(showForbid){
-                        const currentStone = isBlackTurn ? BLACKSTONE : WHITESTONE;
-                        if(isDoubleFour(i,j, currentStone)){
-                            url += "4"
-                        }
-                        else if(isDoubleThree(i,j,currentStone)){
-                            url += "3"
-                        }
-                        else if(isOverLine(i,j,currentStone)){
-                            url += "6"
-                        }
-                        else{
-                            url += "_";
-                        }
+    /**
+    * 오목인지 아닌지 검사
+    * @param {number} x
+    * @param {number} y
+    * @param {1,2} stone
+    * @param {number} dir
+    * @return {boolean}
+    */
+    Omok.prototype.isFive = function(x, y, stone, dir) {
+        return this.checkFiveOrOverLine(x, y, stone, dir) === 1
+    }
+
+    /**
+    * 장목인지 아닌지 검사
+    * @param {number} x
+    * @param {number} y
+    * @param {1,2} stone
+    * @param {number} dir
+    * @return {boolean}
+    */
+    Omok.prototype.isOverLine = function(x, y, stone, dir) {
+        return this.checkFiveOrOverLine(x, y, stone, dir) === 2
+    }
+
+    /**
+    * 오목 장목 여부 검사
+    * @param {number} x
+    * @param {number} y
+    * @param {1,2} stone
+    * @param {number} dir
+    * @return {0,1,2}
+    */
+    Omok.prototype.checkFiveOrOverLine = function(x, y, stone, dir) {
+        let dirs = dir === undefined ? [0, 1, 2, 3] : [dir]
+        let isOverLine = false
+        if(!this.isEmpty(x, y)) {
+            return 0
+        }
+        this.board[x][y] = stone
+        for(dir of dirs) {
+            let nLine = 1
+            let step = DIRECTION[dir]
+            for(let sign = -1; sign < 2; sign += 2) {
+                let i = x + step[0] * sign
+                let j = y + step[1] * sign
+                while(this.isSetStone(i, j)) {
+                    if(this.board[i][j] === stone) {
+                        i += step[0] * sign
+                        j += step[1] * sign
+                        nLine++
+                    }
+                    else {
+                        break
+                    }
+                }
+            }
+
+            let checkFive = this.checkIsFive(stone, nLine)
+            if(checkFive === 1) {
+                this.board[x][y] = EMPTYSTONE
+                return 1
+            }
+            else if(checkFive === 2) {
+                isOverLine = true
+            }
+        }
+        this.board[x][y] = EMPTYSTONE
+        return isOverLine ? 2 : 0
+    }
+
+    /**
+    *장목인지 오목인지 검사
+    * @param {1,2} stone
+    * @param {number} nLine  연결된 개수
+    * @return {0,1,2}  0아무것도 아님 1 오목 2 장목(육목 이상)
+    */
+    Omok.prototype.checkIsFive = function(stone, nLine) {
+        if(nLine < 5) {
+            return 0
+        }
+        else if(nLine === 5 || this.rule.sixWin[stone-1]) {
+            return 1
+        }
+        else {
+            return 2
+        }
+    }
+
+    Omok.prototype.getImage = function(showForbid){
+        if(this.isWin) {
+            showForbid = false
+        }
+        let url = "https://saroro.dev/omok/image/";
+        for(let j = 0; j<BOARDSIZE; j++){
+            for(let i = 0; i<BOARDSIZE; i++){
+                if(this.board[i][j] ===BLACKSTONE){
+                    url +="b";
+                    continue;
+                }
+                else if(this.board[i][j] ===WHITESTONE){
+                    url += "w";
+                    continue;
+                }
+
+                if(showForbid){
+                    const currentStone = this.isBlackTurn ? BLACKSTONE : WHITESTONE;
+                    if(this.isDoubleFour(i,j, currentStone)){
+                        url += "4"
+                    }
+                    else if(this.isDoubleThree(i,j,currentStone)){
+                        url += "3"
+                    }
+                    else if(this.isOverLine(i,j,currentStone)){
+                        url += "6"
                     }
                     else{
                         url += "_";
                     }
                 }
+                else{
+                    url += "_";
+                }
             }
-            return url;
         }
+        return url;
+    }
 
-        function getImageWithMove(showForbid){
-            return makeImage(showForbid)+"/"+boardStack.join(",");
+    /**
+    * 좌표("H8")를 위치(y,x)로 변환
+    * @param {string} cord
+    * @return {array} [y,x]
+    */
+    Omok.prototype.changeCordtoXY = function(cord) {
+        cord = cord.toUpperCase();
+        if(!cord.match(/^[A-Z]\d{1,2}$/)){
+            return false
         }
-        function changeCordToXY(cord){
-            cord = cord.toUpperCase();
-            if(!cord.match(/[A-Z]\d{1,2}/)){
-                throw new Error("Invalid Coordinate");
-            }
-            const y = CODE.indexOf(cord[0]);
-            const x = +cord.slice(1)-1;
-            return [y,x];
-        }
-        /**
-         * 좌표("H8")으로 돌 놓기
-         * @param {string} cord
-         * @return {InvalidPosition|Occupied|Forbid33|Forbid44|Forbid6|BlackWins|WhiteWins|PutComplete}
-         */
-        function putStoneByCord(cord){
-            cord = cord.toUpperCase();
-            if(!cord.match(/[A-Z]\d{1,2}/)){
-                return new InvalidPosition();
-            }
-            const j = CODE.indexOf(cord[0]);
-            const i = +cord.slice(1)-1;
+        const y = CODE.indexOf(cord[0]);
+        const x = +cord.slice(1)-1;
+        return [y,x];
+    }
 
-            return putStone(j,i);
-        }
+    /**
+    * 좌표("H8")으로 돌 놓기
+    * @param {string} cord
+    * @return {InvalidPosition|Occupied|Forbid33|Forbid44|Forbid6|BlackWins|WhiteWins|PutComplete}
+    */
 
-        /**
-         *
-         * @param {number}x
-         * @param {number}y
-         * @return {Forbid6|PutComplete|BlackWins|WhiteWins|Forbid33|InvalidPosition|Occupied|Forbid44}
-         */
-        function putStone(x,y){
-            const currentStone = isBlackTurn ? BLACKSTONE : WHITESTONE;
-            if(( x <0 || y <0 )|| ( x>=BOARDSIZE || y>=BOARDSIZE) ){
-                return  new InvalidPosition();
-            }
-            else if(board[x][y] !== EMPTYSTONE){
-                return new Occupied();
-            }
-            if(isDoubleThree(x,y,currentStone)){
-                const error = new Forbid33();
-                error.period = turn;
-                error.currentTurn = BLACKSTONE ? "b" : "w";
-                error.boardStack = boardStack;
-                error.rule.rule = rule;
-                error.rule.ruleName = ruleName;
-                return error;
-            }
-            if(isDoubleFour(x,y,currentStone)){
-                const error = new Forbid44();
-                error.period = turn;
-                error.currentTurn = BLACKSTONE ? "b" : "w";
-                error.boardStack = boardStack;
-                error.rule.rule = rule;
-                error.rule.ruleName = ruleName;
-                return error;
-            }
-            if(isOverLine(x,y,currentStone)){
-                const error = new Forbid6();
-                error.period = turn;
-                error.currentTurn = BLACKSTONE ? "b" : "w";
-                error.boardStack = boardStack;
-                error.rule.rule = rule;
-                error.rule.ruleName = ruleName;
-                return error;
-            }
+    Omok.prototype.setError = function(err) {
+        err.period = this.turn;
+        err.currentTurn = this.isBlackTurn ? "b" : "w"
+        err.boardStack = this.boardStack;
+        err.rule.rule = this.rule;
+        err.rule.ruleName = this.ruleName;
+        return err;
+    }
 
-            if(isFive(x,y,currentStone)){
-                isWin = true;
-                setStone(x,y,currentStone);
-                const lastPut = CODE[x]+ (+y+1);
-                boardStack.push(lastPut);
-                const winMove = currentStone === BLACKSTONE ? new BlackWins() : new WhiteWins();
-                winMove.lastPut = lastPut;
-                winMove.period = turn;
-                winMove.currentTurn = currentStone === BLACKSTONE ? "b" : "w";
-                winMove.boardStack = boardStack;
-                winMove.rule.ruleName = ruleName;
-                winMove.rule.rule = rule;
-                return winMove;
+    Omok.prototype.setMove = function(move) {
+        move.period = this.turn;
+        move.currentTurn = this.isBlackTurn ? "b" : "w"
+        move.boardStack = this.boardStack;
+        move.rule.rule = this.rule;
+        move.rule.ruleName = this.ruleName;
+        return move;
+    }
+
+    Omok.prototype.putStone = function(x, y) {
+        if(typeof x === "string") {
+            let cord = this.changeCordtoXY(x)
+            if(!cord) {
+                return new InvalidPosition() 
             }
-            const lastPut = CODE[x]+ (+y+1)
-            boardStack.push(lastPut);
-            setStone(x,y,currentStone);
-            turn++;
-            isBlackTurn = !isBlackTurn;
-            const completeMove = new PutComplete();
-            completeMove.lastPut = lastPut;
-            completeMove.period =turn;
-            completeMove.currentTurn = currentStone === BLACKSTONE ? "w" : "b";
-            completeMove.boardStack = boardStack;
-            completeMove.rule.ruleName = ruleName;
-            completeMove.rule.rule = rule;
-            return completeMove;
+            x = cord[0]
+            y = cord[1]
         }
-        return {
-            /**
-             * 현재 보드판 상태를 가져옵니다
-             * 0비어있음 1 흑 2 백
-             * @return {*[]}
-             */
-            "getBoard" : ()=>{
-              return board.map( (e)=>e.slice(0));
-            },
-            /**
-             * 커스텀 룰을 설정합니다
-             * 반드시 sixWin, allow6, allow44 allow33이 포함되어야 합니다
-             * @param rules
-             */
-            "setCustomRule" : (rules)=> {
-                if(turn !==1){
-                    throw new Error("After first move, you can't change the rule");
-                }
-                if(!Object.hasOwnProperty("sixWin")){
-                    throw new Error("Rule must include sixWin")
-                }
-                if(!Object.hasOwnProperty("allow6")){
-                    throw new Error("Rule must include allow6")
-                }
-                if(!Object.hasOwnProperty("allow44")){
-                    throw new Error("Rule must include allow44")
-                }
-                if(!Object.hasOwnProperty("allow33")){
-                    throw new Error("Rule must include allow33")
-                }
-                rule = rules;
-            },
-            /**
-             * 렌주룰로 설정합니다
-             */
-            "setRenjuRule" : ()=>{
-                if(turn !==1){
-                    throw new Error("After first move, you can't change the rule");
-                }
-                rule = {
+        let currentStone = this.isBlackTurn ? BLACKSTONE : WHITESTONE
+        if(!this.isSetStone(x, y)) {
+            return new InvalidPosition()
+        }
+        else if(!this.isEmpty(x, y)) {
+            return new Occupied()
+        }
+        else if(this.isDoubleThree(x, y, currentStone)) {
+            let error = new Forbid33()
+            return this.setError(error)
+        }
+        else if(this.isDoubleFour(x, y, currentStone)) {
+            let error = new Forbid44()
+            return this.setError(error)
+        }
+        else if(this.isOverLine(x, y, currentStone)) {
+            let error = new Forbid6()
+            return this.setError(error)
+        }
+        let isWin = this.isFive(x, y, currentStone)
+        this.board[x][y] = currentStone
+        this.boardStack.push(CODE[x] + (y+1))
+        if(isWin) {
+            let winMove = currentStone === BLACKSTONE ? new BlackWins() : new WhiteWins();
+            return this.setMove(winMove)
+        }
+        this.turn += 1
+        this.isBlackTurn = !this.isBlackTurn
+        completeMove = new PutComplete()
+        return this.setMove(completeMove)
+    }
+
+    Omok.prototype.getBoard = function() {
+        return this.board.map(v => v.slice(0))
+    }
+
+    Omok.prototype.setRule = function(rules) {
+        if(turn !== 1) {
+            throw new Error("After first move, you can't change the rule");
+        }
+        if(typeof rules === "string") {
+            if(rules === "renju") {
+                this.rule = {
                     "sixWin" : [false,true],
                     "allow6" : [false,true],
                     "allow44" : [false,true],
                     "allow33" : [false,true]
                 };
-                ruleName = "renju"
-            },
-            /**
-             * 일반로 설정합니다
-             */
-            "setNormalRule" : ()=>{
-                if(turn !==1){
-                    throw new Error("After first move, you can't change the rule");
-                }
-                rule = {
+                this.ruleName = "renju"
+            }
+            else if(rules === "normal") {
+                this.rule = {
                     "sixWin" : [false,false],
                     "allow6" : [true,true],
                     "allow44" : [true,true],
                     "allow33" : [false,false]
                 };
-                ruleName = "normal"
-            },
-            /**
-             * 고모쿠룰로 설정합니다
-             */
-            "setGomokuRule" : ()=>{
-                if(turn !==1){
-                    throw new Error("After first move, you can't change the rule");
-                }
-                rule = {
+                this.ruleName = "normal"
+            }
+            else if(rules === "gomoku") {
+                this.rule = {
                     "sixWin" : [true,true],
                     "allow6" : [true,true],
                     "allow44" : [true,true],
                     "allow33" : [true,true]
                 };
-                ruleName = "gomoku"
-            },
-            /**
-             * 돌을 배치합니다
-             * @param {string} cord
-             * @return {InvalidPosition|Occupied|Forbid33|Forbid44|Forbid6|BlackWins|WhiteWins|PutComplete}
-             */
-            "putStone" : (cord)=> putStoneByCord(cord),
-            /**
-             * 해당 장소가 오목이 되는지 검사합니다
-             * @param {string} cord
-             * @return {boolean}
-             */
-            "isFive" : (cord)=>{
-                const res = changeCordToXY(cord);
-                return isFive(res[0], res[1],isBlackTurn ? BLACKSTONE : WHITESTONE);
-            },
-            /**
-             * 해당 장소가 장목(육목)이 되는지 검사합니다
-             * @param {string} cord
-             * @return {boolean}
-             */
-            "isOverLine" : (cord)=>{
-                const res = changeCordToXY(cord);
-                return isOverLine(res[0], res[1],isBlackTurn ? BLACKSTONE : WHITESTONE);
-            },
-            /**
-             * 해당 장소가 44가 되는지 확인합니다
-             * @param {string} cord
-             * @return {boolean}
-             */
-            "isDoubleFour" : (cord)=>{
-                const res = changeCordToXY(cord);
-                return isDoubleFour(res[0], res[1],isBlackTurn ? BLACKSTONE : WHITESTONE);
-            },
-            /**
-             * 해당 장소가 33이 되는지 확인합니다.
-             * @param {string} cord
-             * @return {boolean}
-             */
-            "isDoubleThree" : (cord)=>{
-                const res = changeCordToXY(cord);
+                this.ruleName = "gomoku"
+            }
+            else {
+                throw new Error("No such rule exists")
+            }
+        }
+        else {
+            if(!rules.hasOwnProperty("sixWin")){
+                throw new Error("Rule must include sixWin")
+            }
+            if(!rules.hasOwnProperty("allow6")){
+                throw new Error("Rule must include allow6")
+            }
+            if(!rules.hasOwnProperty("allow44")){
+                throw new Error("Rule must include allow44")
+            }
+            if(!rules.hasOwnProperty("allow33")){
+                throw new Error("Rule must include allow33")
+            }
+            rule = rules;
+            this.ruleName = "custom"
+        }
+    }
 
-                return isDoubleThree(res[0], res[1],isBlackTurn ? BLACKSTONE : WHITESTONE);
-            },
-            /**
-             * 보드를 초기화합니다
-             * @return void
-             */
-            "reset" : ()=>resetBoard(),
+    Omok.prototype.getTurn = function() {
+        return this.isBlackTurn ? "b" : "w"
+    }
 
-            /**
-             * 되돌리기
-             * @return {Undo}
-             */
-            "undo" : ()=>{
-                if(boardStack.length ===0 ){
-                    const undo =  new Undo();
-                    undo.currentTurn = "b";
-                    undo.boardStack = [];
-                    undo.period = turn;
-                    undo.rule.ruleName = ruleName;
-                    undo.rule.rule = rule;
-                    undo.removePos = null;
-                    return undo;
-                }
-                else{
-                    const last = boardStack.pop();
-                    const y = CODE.indexOf(last[0]);
-                    const x = +last.slice(1) -1;
-                    setStone(y,x,EMPTYSTONE);
-                    if(isWin){
-                        isWin = false;
+    Omok.prototype.getHistory = function() {
+        return this.boardStack
+    }
 
-                    }
-                    else{
-                        turn --;
-                        isBlackTurn = !isBlackTurn;
-                    }
-                    const undo =  new Undo();
-                    undo.currentTurn = isBlackTurn ? "b" : "w";
-                    undo.boardStack = boardStack;
-                    undo.period = turn;
-                    undo.rule.ruleName = ruleName;
-                    undo.rule.rule = rule;
-                    undo.removePos = last;
-                    return undo;
-                }
-            },
-            /**
-             * 현재 오목판 이미지를 가져옵니다
-             * showForbid가 true라면 금수까지 표시해줍니다
-             * @param {boolean} showForbid
-             * @return {string}
-             */
-            "getImage" : (showForbid = true)=>{
-                return makeImage(showForbid);
-            },
-            /**
-             * 현재 오목판 이미지를 착수 순서까지 표시하여 가져옵니다
-             * showForbid가 true라면 금수까지 표시해줍니다
-             * @param {boolean}showForbid
-             * @return {string}
-             */
-            "getImageWithMove" :(showForbid = true)=>{
-                return getImageWithMove(showForbid);
-            },
-            /**
-             * 현재 오목 기보를 확인합니다.
-             * @return {*[]}
-             */
-            "getHistory" : ()=>boardStack,
+    Omok.prototype.getPeriod = function() {
+        return this.turn
+    }
 
-            /**
-             * 현재 누구 차례인지 가져옵니다
-             * b : 흑 w : 백
-             * @return {"b","w"}
-             */
-
-            "getTurn" : ()=> isBlackTurn ? "b": "w",
-            /**
-             *착수가 몇번째인지 구합니다.
-             * @return {number}
-             */
-            "getPeriod" : ()=>turn,
+    Omok.prototype.undo = function() {
+        if(this.boardStack.length === 0){
+            const undo =  new Undo();
+            undo.currentTurn = "b";
+            undo.boardStack = [];
+            undo.period = this.turn;
+            undo.rule.ruleName = this.ruleName;
+            undo.rule.rule = this.rule;
+            undo.removePos = null;
+            return undo;
+        }
+        else{
+            const last = this.boardStack.pop();
+            cord = this.changeCordtoXY(last)
+            this.board[cord[0]][cord[1]] = EMPTYSTONE
+            if(this.isWin){
+                this.isWin = false;
+            }
+            else{
+                this.turn -= 1
+                this.isBlackTurn = !this.isBlackTurn;
+            }
+            const undo =  new Undo();
+            undo.currentTurn = this.isBlackTurn ? "b" : "w";
+            undo.boardStack = this.boardStack;
+            undo.period = this.turn;
+            undo.rule.ruleName = this.ruleName;
+            undo.rule.rule = this.rule;
+            undo.removePos = last;
+            return undo;
         }
     }
     module.exports = {
-        Omok: Omok
+        Omok : Omok
     }
-})();
-
-
-
+})()
