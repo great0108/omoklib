@@ -1,107 +1,92 @@
 (function(){
-    "use strict";
-    class PutComplete{
-        status = "ok";
-        code = 0;
-        period = 0;
-        currentTurn = 0;
-        lastPut = "";
-        boardStack = [];
-        rule = {
-            "rule" : {},
-            "ruleName" : "",
-        }
-    }
-
-    class BlackWins extends PutComplete{
-        status = "bWins";
-        code = 5;
-        rule = {
-            "rule" : {},
-            "ruleName" : "",
-        }
-    }
-
-    class WhiteWins extends PutComplete{
-        status = "wWins";
-        code = 5;
-        rule = {
-            "rule" : {},
-            "ruleName" : "",
-        }
-    }
-
-
-    class Forbid{
-        status = "error";
-        code = 0;
-        reason = "";
-        currentTurn = "";
-        period = 0;
-        boardStack = [];
-        rule ={
-            "ruleName" : "",
-            "rule" : {}
-        }
-    }
-    class Forbid33 extends Forbid{
-        code = 3;
-        reason = "33";
-        rule ={
+    "use strict"
+    function PutComplete(){
+        this.status = "ok";
+        this.code = 0;
+        this.period = 0;
+        this.currentTurn = 0;
+        this.boardStack = [];
+        this.rule ={
             "ruleName" : "",
             "rule" : {}
         }
     }
 
-    class Forbid44 extends Forbid{
-        code = 4;
-        reason = "44";
-        rule ={
+    function BlackWins(){
+        PutComplete.call(this)
+        this.status = "bWins";
+        this.code = 5;
+    }
+
+    function WhiteWins(){
+        PutComplete.call(this)
+        this.status = "wWins"
+        this.code = 5;
+    }
+
+    function Forbid(){
+        this.status = "error";
+        this.code = 0;
+        this.reason = "";
+        this.period = 0;
+        this.currentTurn = "";
+        this.boardStack = [];
+        this.rule ={
             "ruleName" : "",
             "rule" : {}
         }
-    }
-    class Forbid6 extends Forbid{
-        code = 6;
-        reason = "overline";
-        rule ={
-            "ruleName" : "",
-            "rule" : {}
-        }
+
     }
 
-
-
-    class PutError{
-        status = "error";
-        code = 0;
-        reason = "";
+    function Forbid33(){
+        Forbid.call(this)
+        this.code = 3;
+        this.reason = "33";
     }
 
-    class InvalidPosition{
-        code = -2;
-        reason = "Coordinate is not valid";
-    }
-    class Occupied{
-        code = -3;
-        reason = "Coordinate is not valid";
+    function Forbid44(){
+        Forbid.call(this)
+        this.code = 4;
+        this.reason = "44";
     }
 
+    function Forbid6(){
+        Forbid.call(this)
+        this.code = 6;
+        this.reason = "6";
+    }
 
+    function PutError(){
+        this.status = "error";
+        this.code = 0;
+        this.reason = "";
+    }
 
+    function InvalidPosition(){
+        PutError.call(this)
+        this.code = -2
+        this.reason = "Coordinate is not valid"
+    }
 
-    class Undo{
-        status = "UNDO";
-        code = -1;
-        currentTurn = "";
-        boardStack = [];
-        period = 0;
-        rule = {
+    function Occupied(){
+        PutError.call(this)
+        this.code = -3
+        this.reason = "Stone is already existed"
+    }
+
+    function Undo(){
+        this.status = "UNDO";
+        this.code = -1;
+        this.currentTurn = "";
+        this.boardStack = [];
+        this.period = 0;
+        this.rule = {
             "ruleName" : "",
             "rule" : {},
         }
-        removePos = "";
+        this.removePos = "";
     }
+
     module.exports = {
         PutComplete: PutComplete,
         BlackWins : BlackWins,
@@ -113,8 +98,6 @@
         PutError : PutError,
         InvalidPosition : InvalidPosition,
         Occupied : Occupied,
-        Undo : Undo,
+        Undo : Undo
     }
-
 })();
-
