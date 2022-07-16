@@ -12,7 +12,6 @@
         this.turn = 1;
         this.board = Array(BOARDSIZE).fill().map(v => Array(BOARDSIZE).fill(0));
         this.boardStack = [];
-        this.forbidZone = [];
         this.rule = {
             "sixWin" : [false,true],
             "allow6" : [false,true],
@@ -24,10 +23,7 @@
         this.isWin = false
     }
 
-    /**
-    * 보드 초기화 할때 사용
-    * @return void
-    */
+    // 보드 초기화 할때 사용
     Omok.prototype.reset = function() {
         this.turn = 1
         this.board = Array(BOARDSIZE).fill().map(v => Array(BOARDSIZE).fill(0));
@@ -36,45 +32,28 @@
         this.isWin = false
     }
 
-    /**
-    * 착수 할 수 있는 위치인지 확인
-    * @param {number} x
-    * @param {number} y
-    */
+    // 착수 할 수 있는 위치인지 검사
     Omok.prototype.isSetStone = function(x, y) {
         return x >= 0 && y >= 0 && x < BOARDSIZE && y < BOARDSIZE
     }
 
-    /**
-    * 비어있는지 확인
-    * @param {number} x
-    * @param {number} y
-    */
-    Omok.prototype.isEmpty = function(x, y) {
-        return this.isSetStone(x, y) && this.board[x][y] === EMPTYSTONE
+    //33이나 44를 확인해야 하는지 검사
+    Omok.prototype.isCheckDouble = function(num) {
+        if(!this.isSetStone(x, y) || this.board[x][y] !== EMPTYSTONE) {
+            return false
+        } else if(this.isFive(x, y, stone) || this.isOverLine(x, y, stone)) {
+            return false
+        } else if(this.rule["allow" + String(num).repeat(2)][stone-1]) {
+            return false
+        }
+        return true
     }
 
-    /**
-    * 33 인지 검사
-    * @param {number} x
-    * @param {number} y
-    * @param {1,2} stone
-    * @return {boolean}
-    */
+    // 33 인지 검사
     Omok.prototype.isDoubleThree = function(x, y, stone) {
-        if(!this.isEmpty(x, y)) {
+        if(!this.isCheckDouble(3)) {
             return false
         }
-        else if(this.isFive(x, y, stone)) {
-            return false
-        }
-        else if(this.isOverLine(x, y, stone)) {
-            return false
-        }
-        else if(this.rule.allow33[stone-1]) {
-            return false
-        }
-
         let countThree = 0
         for(let i = 0; i <= 3; i++) {
             if(this.isOpenThree(x, y, stone, i)) {
@@ -84,142 +63,64 @@
         return countThree >= 2
     }
 
-    /**
-    * 44 인지 검사
-    * @param {number} x
-    * @param {number} y
-    * @param {1,2} stone
-    * @return {boolean}
-    */
+    // 44 인지 검사
     Omok.prototype.isDoubleFour = function(x, y, stone) {
-        if(!this.isEmpty(x, y)) {
+        if(!this.isCheckDouble(4)) {
             return false
         }
-        else if(this.isFive(x, y, stone)) {
-            return false
-        }
-        else if(this.isOverLine(x, y, stone)) {
-            return false
-        }
-        else if(this.rule.allow44[stone-1]) {
-            return false
-        }
-
         let countFour = 0;
         for(let i = 0; i <= 3; i++){
             if(this.isOpenFour(x, y, stone, i) === 2){
                 countFour += 2;
-            }
-            else if(this.isFour(x, y, stone, i)){
+            } else if(this.isFour(x, y, stone, i)){
                 countFour += 1;
             }
         }
         return countFour >= 2;
     }
 
-    /**
-    * 열린 3인지 검사 열린 3 정의는 꺼무위키 참고
-    * @param {number} x
-    * @param {number} y
-    * @param {1,2} stone
-    * @param {1,2,3,4} dir
-    * @return {boolean}
-    */
+    // 열린 3인지 또는 4인지 검사 (4는 닫힌거든 열린거든 상관 무)
+    Omok.prototype.isOpenThreeOrFour = function(x, y, stone, dir, num) {
+        this.board[x][y] = stone
+        let step = DIRECTION[dir]
+        for(let sign = -1; sign < 2; sign += 2) {
+            let i = x + step[0] * sign
+            let j = y + step[1] * sign
+            while(this.isSetStone(i, j)) {
+                if(this.board[i][j] === stone) {
+                    i += step[0] * sign
+                    j += step[1] * sign
+                } else if(this.board[i][j] === EMPTYSTONE) {
+                    if(num === 3 ? this.checkFakeThree(i, j, stone, dir) : this.isFive(i, j, stone, dir)) {
+                        this.board[x][y] = EMPTYSTONE
+                        return true
+                    }
+                    break
+                } else {
+                   break
+                }
+            }
+        }
+        this.board[x][y] = EMPTYSTONE
+        return false
+    }
+
+    // 열린 3인지 검사 열린 3 정의는 꺼무위키 참고
     Omok.prototype.isOpenThree = function(x, y, stone, dir) {
-        this.board[x][y] = stone
-        let step = DIRECTION[dir]
-        for(let sign = -1; sign < 2; sign += 2) {
-            let i = x + step[0] * sign
-            let j = y + step[1] * sign
-            while(this.isSetStone(i, j)) {
-                if(this.board[i][j] === stone) {
-                    i += step[0] * sign
-                    j += step[1] * sign
-                }
-                else if(this.board[i][j] === EMPTYSTONE) {
-                    if(this.checkFakeThree(i, j, stone, dir)) {
-                        this.board[x][y] = EMPTYSTONE
-                        return true
-                    } 
-                    else {
-                        break
-                    }
-                }
-                else {
-                    break
-                }
-            }
-        }
-        this.board[x][y] = EMPTYSTONE
-        return false
+        return this.isOpenThreeOrFour(x, y, stone, dir, 3)
     }
 
-    /**
-    * 거짓금수 체크용
-    * @param {number} x
-    * @param {number} y
-    * @param {1,2} stone
-    * @param {1,2,3,4} dir
-    * @return {boolean}
-    */
+    //거짓금수 체크용
     Omok.prototype.checkFakeThree = function(x, y, stone, dir) {
-        if(this.isOpenFour(x, y, stone, dir) !== 1) {
-            return false
-        }
-        else if(this.isDoubleFour(x, y, stone)) {
-            return false
-        }
-        else if(this.isDoubleThree(x, y, stone)) {
-            return false
-        }
-        return true
+        return (this.isOpenFour(x, y, stone, dir) === 1) && !this.isDoubleFour(x, y, stone) && !this.isDoubleThree(x, y, stone);
     }
 
-    /**
-    * 4인지 검사 (닫힌거든 열린거든 상관 무)
-    * @param {number} x
-    * @param {number} y
-    * @param {1,2} stone
-    * @param {1,2,3,4} dir
-    * @return {boolean}
-    */
+    //4인지 검사 (닫힌거든 열린거든 상관 무)
     Omok.prototype.isFour = function(x, y, stone, dir) {
-        this.board[x][y] = stone
-        let step = DIRECTION[dir]
-        for(let sign = -1; sign < 2; sign += 2) {
-            let i = x + step[0] * sign
-            let j = y + step[1] * sign
-            while(this.isSetStone(i, j)) {
-                if(this.board[i][j] === stone) {
-                    i += step[0] * sign
-                    j += step[1] * sign
-                }
-                else if(this.board[i][j] === EMPTYSTONE) {
-                    if(this.isFive(i, j, stone, dir)) {
-                        this.board[x][y] = EMPTYSTONE
-                        return true
-                    } 
-                    else {
-                        break
-                    }
-                }
-                else {
-                    break
-                }
-            }
-        }
-        this.board[x][y] = EMPTYSTONE
-        return false
+        return this.isOpenThreeOrFour(x, y, stone, dir, 4)
     }
 
-    /**
-    *열린 4 검사, 2일 때 44임  (O,X,O,ㅁ,X,O ㅁ 자리를 검사하기 위해서)  1인 경우는 열린 3을 검사하기 위해 사용
-    * @param {number} x
-    * @param {number} y
-    * @param {1,2} stone
-    * @param {1,2,3,4} dir
-    * @return {0,1,2}
-    */
+    //열린 4 검사, 2일 때 44임  (O,X,O,ㅁ,X,O ㅁ 자리를 검사하기 위해서)  1인 경우는 열린 3을 검사하기 위해 사용
     Omok.prototype.isOpenFour = function(x, y, stone, dir) {
         this.board[x][y] = stone
         let nLine = 1
@@ -232,21 +133,16 @@
                     i += step[0] * sign
                     j += step[1] * sign
                     nLine++
-                }
-                else if(this.board[i][j] === EMPTYSTONE) {
+                } else if(this.board[i][j] === EMPTYSTONE) {
                     if(sign === -1 && !this.isFive(i, j, stone, dir)) {
                         this.board[x][y] = EMPTYSTONE
                         return 0
-                    }
-                    else if(sign === 1 && this.isFive(i, j, stone, dir)) {
+                    } else if(sign === 1 && this.isFive(i, j, stone, dir)) {
                         this.board[x][y] = EMPTYSTONE
                         return nLine === 4 ? 1 : 2
                     } 
-                    else {
-                        break
-                    }
-                }
-                else {
+                    break
+                } else {
                     this.board[x][y] = EMPTYSTONE
                     return 0
                 }
@@ -256,42 +152,21 @@
         return 0
     }
 
-    /**
-    * 오목인지 아닌지 검사
-    * @param {number} x
-    * @param {number} y
-    * @param {1,2} stone
-    * @param {number} dir
-    * @return {boolean}
-    */
+    //오목인지 아닌지 검사
     Omok.prototype.isFive = function(x, y, stone, dir) {
         return this.checkFiveOrOverLine(x, y, stone, dir) === 1
     }
 
-    /**
-    * 장목인지 아닌지 검사
-    * @param {number} x
-    * @param {number} y
-    * @param {1,2} stone
-    * @param {number} dir
-    * @return {boolean}
-    */
+    //장목인지 아닌지 검사
     Omok.prototype.isOverLine = function(x, y, stone, dir) {
         return this.checkFiveOrOverLine(x, y, stone, dir) === 2
     }
 
-    /**
-    * 오목 장목 여부 검사
-    * @param {number} x
-    * @param {number} y
-    * @param {1,2} stone
-    * @param {number} dir
-    * @return {0,1,2}
-    */
+    //오목 장목 여부 검사
     Omok.prototype.checkFiveOrOverLine = function(x, y, stone, dir) {
         let dirs = dir === undefined ? [0, 1, 2, 3] : [dir]
         let isOverLine = false
-        if(!this.isEmpty(x, y)) {
+        if(!this.isSetStone(x, y) || this.board[x][y] !== EMPTYSTONE) {
             return 0
         }
         this.board[x][y] = stone
@@ -306,8 +181,7 @@
                         i += step[0] * sign
                         j += step[1] * sign
                         nLine++
-                    }
-                    else {
+                    } else {
                         break
                     }
                 }
@@ -326,61 +200,33 @@
         return isOverLine ? 2 : 0
     }
 
-    /**
-    *장목인지 오목인지 검사
-    * @param {1,2} stone
-    * @param {number} nLine  연결된 개수
-    * @return {0,1,2}  0아무것도 아님 1 오목 2 장목(육목 이상)
-    */
+    //장목인지 오목인지 검사
     Omok.prototype.checkIsFive = function(stone, nLine) {
         if(nLine < 5) {
             return 0
-        }
-        else if(nLine === 5 || this.rule.sixWin[stone-1]) {
+        } else if(nLine === 5 || this.rule.sixWin[stone-1]) {
             return 1
         }
-        else {
-            return 2
-        }
+        return 2
     }
 
     Omok.prototype.getImage = function(showForbid){
-        if(this.isWin) {
-            showForbid = false
-        }
-        let url = "https://saroro.dev/omok/image/";
-        for(let j = 0; j<BOARDSIZE; j++){
-            for(let i = 0; i<BOARDSIZE; i++){
-                if(this.board[i][j] ===BLACKSTONE){
-                    url +="b";
-                    continue;
-                }
-                else if(this.board[i][j] ===WHITESTONE){
-                    url += "w";
-                    continue;
-                }
-
-                if(showForbid){
-                    const currentStone = this.isBlackTurn ? BLACKSTONE : WHITESTONE;
-                    if(this.isDoubleFour(i,j, currentStone)){
-                        url += "4"
-                    }
-                    else if(this.isDoubleThree(i,j,currentStone)){
-                        url += "3"
-                    }
-                    else if(this.isOverLine(i,j,currentStone)){
-                        url += "6"
-                    }
-                    else{
-                        url += "_";
-                    }
-                }
-                else{
-                    url += "_";
+        return "https://saroro.dev/omok/image/" + this.board.map((v, i) => v.map((stone, j) => {
+            if(stone === BLACKSTONE) {
+                return "b"
+            } else if(stone == WHITESTONE) {
+                return "w"
+            } else if(showForbid && !this.isWin) {
+                if(this.isDoubleFour(i, j, stone)) {
+                    return "4"
+                } else if(this.isDoubleThree(i, j, stone)) {
+                    return "3"
+                } else if(this.isOverLine(i, j, stone)) {
+                    return "6"
                 }
             }
-        }
-        return url;
+            return "_"
+        }))
     }
 
     Omok.prototype.changeCordtoXY = function(cord) {
@@ -411,29 +257,20 @@
         return move;
     }
 
-    /**
-    * 위치(y, x)로 돌 놓기
-    * @param {number}x
-    * @param {number}y
-    * @return {Forbid6|PutComplete|BlackWins|WhiteWins|Forbid33|InvalidPosition|Occupied|Forbid44}
-    */
+    // 위치(y, x)로 돌 놓기
     Omok.prototype.putStone = function(x, y) {
         let currentStone = this.isBlackTurn ? BLACKSTONE : WHITESTONE
         if(!this.isSetStone(x, y)) {
             return new InvalidPosition()
-        }
-        else if(!this.isEmpty(x, y)) {
+        } else if(this.board[x][y] !== EMPTYSTONE) {
             return new Occupied()
-        }
-        else if(this.isDoubleThree(x, y, currentStone)) {
+        } else if(this.isDoubleThree(x, y, currentStone)) {
             let error = new Forbid33()
             return this.setError(error)
-        }
-        else if(this.isDoubleFour(x, y, currentStone)) {
+        } else if(this.isDoubleFour(x, y, currentStone)) {
             let error = new Forbid44()
             return this.setError(error)
-        }
-        else if(this.isOverLine(x, y, currentStone)) {
+        } else if(this.isOverLine(x, y, currentStone)) {
             let error = new Forbid6()
             return this.setError(error)
         }
@@ -453,8 +290,7 @@
     Omok.prototype.setRule = function(rules) {
         if(turn !== 1) {
             throw new Error("After first move, you can't change the rule");
-        }
-        if(typeof rules === "string") {
+        } else if(typeof rules === "string") {
             if(rules === "renju") {
                 this.rule = {
                     "sixWin" : [false,true],
@@ -485,18 +321,14 @@
             else {
                 throw new Error("No such rule exists")
             }
-        }
-        else {
+        } else {
             if(!rules.hasOwnProperty("sixWin")){
                 throw new Error("Rule must include sixWin")
-            }
-            if(!rules.hasOwnProperty("allow6")){
+            } else if(!rules.hasOwnProperty("allow6")){
                 throw new Error("Rule must include allow6")
-            }
-            if(!rules.hasOwnProperty("allow44")){
+            } else if(!rules.hasOwnProperty("allow44")){
                 throw new Error("Rule must include allow44")
-            }
-            if(!rules.hasOwnProperty("allow33")){
+            } else if(!rules.hasOwnProperty("allow33")){
                 throw new Error("Rule must include allow33")
             }
             rule = rules;
