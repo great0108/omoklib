@@ -1,4 +1,5 @@
 (function() {
+    "use strict"
     const {Occupied, InvalidPosition, PutError, Forbid33, Forbid44, Forbid6, Forbid, BlackWins, WhiteWins, PutComplete, Undo} = require("./ActionClass");
     const EMPTYSTONE = 0;
     const BLACKSTONE = 1;
@@ -66,15 +67,6 @@
     * @return {boolean}
     */
     Omok.prototype.isDoubleThree = function(x, y, stone) {
-        if(typeof x === "string") {
-            let cord = this.changeCordtoXY(x)
-            if(!cord) {
-                return new InvalidPosition() 
-            }
-            x = cord[0]
-            y = cord[1]
-            stone = this.isBlackTurn ? BLACKSTONE : WHITESTONE
-        }
         if(!this.isEmpty(x, y)) {
             return false
         }
@@ -105,15 +97,6 @@
     * @return {boolean}
     */
     Omok.prototype.isDoubleFour = function(x, y, stone) {
-        if(typeof x === "string") {
-            let cord = this.changeCordtoXY(x)
-            if(!cord) {
-                return new InvalidPosition() 
-            }
-            x = cord[0]
-            y = cord[1]
-            stone = this.isBlackTurn ? BLACKSTONE : WHITESTONE
-        }
         if(!this.isEmpty(x, y)) {
             return false
         }
@@ -445,14 +428,6 @@
     }
 
     Omok.prototype.putStone = function(x, y) {
-        if(typeof x === "string") {
-            let cord = this.changeCordtoXY(x)
-            if(!cord) {
-                return new InvalidPosition() 
-            }
-            x = cord[0]
-            y = cord[1]
-        }
         let currentStone = this.isBlackTurn ? BLACKSTONE : WHITESTONE
         if(!this.isSetStone(x, y)) {
             return new InvalidPosition()
@@ -587,7 +562,122 @@
             return undo;
         }
     }
+    function Omok2() {
+        let omok = new Omok()
+        return {
+            /**
+             * 현재 보드판 상태를 가져옵니다
+             * 0비어있음 1 흑 2 백
+             * @return {*[]}
+             */
+            "getBoard" : () => omok.board.map(v => v.slice(0)),
+            
+            /**
+             * 룰을 설정합니다
+             * 커스텀의 경우 반드시 sixWin, allow6, allow44 allow33이 포함되어야 합니다
+             * @param rules
+             */
+            "setRule" : (rule) => omok.setRule(rule),
+
+            /**
+             * 돌을 배치합니다
+             * @param {string} cord
+             * @return {InvalidPosition|Occupied|Forbid33|Forbid44|Forbid6|BlackWins|WhiteWins|PutComplete}
+             */
+            "putStone" : (cord) => {
+                const res = omok.changeCordToXY(cord);
+                return res ? omok.putStone(res) : new InvalidPosition()
+            },
+
+            /**
+             * 해당 장소가 오목이 되는지 검사합니다
+             * @param {string} cord
+             * @return {boolean}
+             */
+            "isFive" : (cord) => {
+                const res = omok.changeCordToXY(cord);
+                return res ? omok.isFive(res) : new InvalidPosition()
+            },
+
+            /**
+             * 해당 장소가 장목(육목)이 되는지 검사합니다
+             * @param {string} cord
+             * @return {boolean}
+             */
+            "isOverLine" : (cord) => {
+                const res = omok.changeCordToXY(cord);
+                return res ? omok.isOverLine(res) : new InvalidPosition()
+            },
+
+            /**
+             * 해당 장소가 44가 되는지 확인합니다
+             * @param {string} cord
+             * @return {boolean}
+             */
+            "isDoubleFour" : (cord) => {
+                const res = omok.changeCordToXY(cord);
+                return res ? omok.isDoubleFour(res) : new InvalidPosition()
+            },
+
+            /**
+             * 해당 장소가 33이 되는지 확인합니다.
+             * @param {string} cord
+             * @return {boolean}
+             */
+            "isDoubleThree" : (cord) => {
+                const res = omok.changeCordToXY(cord);
+                return res ? omok.isDoubleThree(res) : new InvalidPosition()
+            },
+
+            /**
+             * 보드를 초기화합니다
+             * @return void
+             */
+            "reset" : () => omok.reset(),
+
+            /**
+             * 되돌리기
+             * @return {Undo}
+             */
+            "undo" : () => omok.undo(),
+
+            /**
+             * 현재 오목판 이미지를 가져옵니다
+             * showForbid가 true라면 금수까지 표시해줍니다
+             * @param {boolean} showForbid
+             * @return {string}
+             */
+            "getImage" : (showForbid) => omok.getImage(showForbid),
+
+            /**
+             * 현재 오목판 이미지를 착수 순서까지 표시하여 가져옵니다
+             * showForbid가 true라면 금수까지 표시해줍니다
+             * @param {boolean}showForbid
+             * @return {string}
+             */
+            "getImageWithMove" : (showForbid) => omok.getImage(showForbid) + "/" + omok.boardStack.join(","),
+
+            /**
+             * 현재 오목 기보를 확인합니다.
+             * @return {*[]}
+             */
+            "getHistory" : () => omok.boardStack,
+
+            /**
+             * 현재 누구 차례인지 가져옵니다
+             * b : 흑 w : 백
+             * @return {"b","w"}
+             */
+            "getTurn" : () => omok.isBlackTurn ? "b" : "w",
+
+            /**
+             *착수가 몇번째인지 구합니다.
+             * @return {number}
+             */
+            "getPeriod" : () => omok.turn
+        }
+    }
     module.exports = {
-        Omok : Omok
+        Omok : Omok2
     }
 })()
