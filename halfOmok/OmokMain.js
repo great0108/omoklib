@@ -388,11 +388,6 @@
         return url;
     }
 
-    /**
-    * 좌표("H8")를 위치(y,x)로 변환
-    * @param {string} cord
-    * @return {array} [y,x]
-    */
     Omok.prototype.changeCordtoXY = function(cord) {
         cord = cord.toUpperCase();
         if(!cord.match(/^[A-Z]\d{1,2}$/)){
@@ -402,12 +397,6 @@
         const x = +cord.slice(1)-1;
         return [y,x];
     }
-
-    /**
-    * 좌표("H8")으로 돌 놓기
-    * @param {string} cord
-    * @return {InvalidPosition|Occupied|Forbid33|Forbid44|Forbid6|BlackWins|WhiteWins|PutComplete}
-    */
 
     Omok.prototype.setError = function(err) {
         err.period = this.turn;
@@ -427,6 +416,12 @@
         return move;
     }
 
+    /**
+    * 위치(y, x)로 돌 놓기
+    * @param {number}x
+    * @param {number}y
+    * @return {Forbid6|PutComplete|BlackWins|WhiteWins|Forbid33|InvalidPosition|Occupied|Forbid44}
+    */
     Omok.prototype.putStone = function(x, y) {
         let currentStone = this.isBlackTurn ? BLACKSTONE : WHITESTONE
         if(!this.isSetStone(x, y)) {
@@ -458,10 +453,6 @@
         this.isBlackTurn = !this.isBlackTurn
         completeMove = new PutComplete()
         return this.setMove(completeMove)
-    }
-
-    Omok.prototype.getBoard = function() {
-        return this.board.map(v => v.slice(0))
     }
 
     Omok.prototype.setRule = function(rules) {
@@ -518,18 +509,6 @@
         }
     }
 
-    Omok.prototype.getTurn = function() {
-        return this.isBlackTurn ? "b" : "w"
-    }
-
-    Omok.prototype.getHistory = function() {
-        return this.boardStack
-    }
-
-    Omok.prototype.getPeriod = function() {
-        return this.turn
-    }
-
     Omok.prototype.undo = function() {
         if(this.boardStack.length === 0){
             const undo =  new Undo();
@@ -571,7 +550,7 @@
              * @return {*[]}
              */
             "getBoard" : () => omok.board.map(v => v.slice(0)),
-            
+
             /**
              * 룰을 설정합니다
              * 커스텀의 경우 반드시 sixWin, allow6, allow44 allow33이 포함되어야 합니다
