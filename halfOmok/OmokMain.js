@@ -341,26 +341,26 @@
             showForbid = false
         }
         let url = "https://saroro.dev/omok/image/";
-        for(let j = 0; j<BOARDSIZE; j++){
-            for(let i = 0; i<BOARDSIZE; i++){
-                if(this.board[i][j] ===BLACKSTONE){
-                    url +="b";
+        for(let j = 0; j < BOARDSIZE; j++){
+            for(let i = 0; i < BOARDSIZE; i++){
+                if(this.board[i][j] === BLACKSTONE){
+                    url += "b";
                     continue;
                 }
-                else if(this.board[i][j] ===WHITESTONE){
+                else if(this.board[i][j] === WHITESTONE){
                     url += "w";
                     continue;
                 }
 
                 if(showForbid){
                     const currentStone = this.isBlackTurn ? BLACKSTONE : WHITESTONE;
-                    if(this.isDoubleFour(i,j, currentStone)){
+                    if(this.isDoubleFour(i, j, currentStone)){
                         url += "4"
                     }
-                    else if(this.isDoubleThree(i,j,currentStone)){
+                    else if(this.isDoubleThree(i, j, currentStone)){
                         url += "3"
                     }
-                    else if(this.isOverLine(i,j,currentStone)){
+                    else if(this.isOverLine(i, j, currentStone)){
                         url += "6"
                     }
                     else{
@@ -405,8 +405,8 @@
 
     /**
     * 위치(y, x)로 돌 놓기
-    * @param {number}x
-    * @param {number}y
+    * @param {number} x
+    * @param {number} y
     * @return {Forbid6|PutComplete|BlackWins|WhiteWins|Forbid33|InvalidPosition|Occupied|Forbid44}
     */
     Omok.prototype.putStone = function(x, y) {
