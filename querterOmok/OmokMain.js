@@ -56,9 +56,7 @@
         }
         let countThree = 0
         for(let i = 0; i <= 3; i++) {
-            if(this.isOpenThreeOrFour(x, y, stone, dir, 3)) {
-                countThree += 1
-            }
+            countThree += Number(this.isOpenThreeOrFour(x, y, stone, i, 3))
         }
         return countThree >= 2
     }
@@ -72,26 +70,26 @@
         for(let i = 0; i <= 3; i++){
             if(this.isOpenFour(x, y, stone, i) === 2){
                 countFour += 2;
-            } else if(this.isOpenThreeOrFour(x, y, stone, dir, 4)){
-                countFour += 1;
             }
+            countFour += Number(this.isOpenThreeOrFour(x, y, stone, i, 4))
         }
         return countFour >= 2;
+    }
+
+    Omok.prototype.nextCord = function(cord, sign, dir) {
+        return [cord[0] + DIRECTION[dir][0] * sign, cord[1] + DIRECTION[dir][1] * sign]
     }
 
     // 열린 3인지 또는 4인지 검사 (4는 닫힌거든 열린거든 상관 무, 열린 3 정의는 꺼무위키 참고)
     Omok.prototype.isOpenThreeOrFour = function(x, y, stone, dir, num) {
         this.board[x][y] = stone
-        let step = DIRECTION[dir]
         for(let sign = -1; sign < 2; sign += 2) {
-            let i = x + step[0] * sign
-            let j = y + step[1] * sign
-            while(this.isSetStone(i, j)) {
-                if(this.board[i][j] === stone) {
-                    i += step[0] * sign
-                    j += step[1] * sign
-                } else if(this.board[i][j] === EMPTYSTONE) {
-                    if(num === 3 ? this.checkFakeThree(i, j, stone, dir) : this.isFive(i, j, stone, dir)) {
+            let cord = this.nextCord([x, y], sign, dir)
+            while(this.isSetStone(cord[0], cord[1])) {
+                if(this.board[cord[0]][cord[1]] === stone) {
+                    cord = this.nextCord(cord, sign, dir)
+                } else if(this.board[cord[0]][cord[1]] === EMPTYSTONE) {
+                    if(num === 3 ? this.checkFakeThree(cord[0], cord[1], stone, dir) : this.isFive(cord[0], cord[1], stone, dir)) {
                         this.board[x][y] = EMPTYSTONE
                         return true
                     }
@@ -114,20 +112,17 @@
     Omok.prototype.isOpenFour = function(x, y, stone, dir) {
         this.board[x][y] = stone
         let nLine = 1
-        let step = DIRECTION[dir]
         for(let sign = -1; sign < 2; sign += 2) {
-            let i = x + step[0] * sign
-            let j = y + step[1] * sign
-            while(this.isSetStone(i, j)) {
-                if(this.board[i][j] === stone) {
-                    i += step[0] * sign
-                    j += step[1] * sign
+            let cord = this.nextCord([x, y], sign, dir)
+            while(this.isSetStone(cord[0], cord[1])) {
+                if(this.board[cord[0]][cord[1]] === stone) {
+                    cord = this.nextCord(cord, sign, dir)
                     nLine++
-                } else if(this.board[i][j] === EMPTYSTONE) {
-                    if(sign === -1 && !this.isFive(i, j, stone, dir)) {
+                } else if(this.board[cord[0]][cord[1]] === EMPTYSTONE) {
+                    if(sign === -1 && !this.isFive(cord[0], cord[1], stone, dir)) {
                         this.board[x][y] = EMPTYSTONE
                         return 0
-                    } else if(sign === 1 && this.isFive(i, j, stone, dir)) {
+                    } else if(sign === 1 && this.isFive(cord[0], cord[1], stone, dir)) {
                         this.board[x][y] = EMPTYSTONE
                         return nLine === 4 ? 1 : 2
                     } 
@@ -162,14 +157,11 @@
         this.board[x][y] = stone
         for(dir of dirs) {
             let nLine = 1
-            let step = DIRECTION[dir]
             for(let sign = -1; sign < 2; sign += 2) {
-                let i = x + step[0] * sign
-                let j = y + step[1] * sign
-                while(this.isSetStone(i, j)) {
-                    if(this.board[i][j] === stone) {
-                        i += step[0] * sign
-                        j += step[1] * sign
+                let cord = this.nextCord([x, y], sign, dir)
+                while(this.isSetStone(cord[0], cord[1])) {
+                    if(this.board[cord[0]][cord[1]] === stone) {
+                        cord = this.nextCord(cord, sign, dir)
                         nLine++
                     } else {
                         break
@@ -181,8 +173,7 @@
             if(checkFive === 1) {
                 this.board[x][y] = EMPTYSTONE
                 return 1
-            }
-            else if(checkFive === 2) {
+            } else if(checkFive === 2) {
                 isOverLine = true
             }
         }
@@ -257,7 +248,7 @@
     }
 
     Omok.prototype.setRule = function(rules) {
-        if(turn !== 1) {
+        if(this.turn !== 1) {
             throw new Error("After first move, you can't change the rule");
         } else if(typeof rules === "string") {
             if(RULE.hasOwnProperty(rules)) {
@@ -283,36 +274,20 @@
 
     Omok.prototype.undo = function() {
         if(this.boardStack.length === 0){
-            const undo =  new Undo();
-            undo.currentTurn = "b";
-            undo.boardStack = [];
-            undo.period = this.turn;
-            undo.rule.ruleName = this.ruleName;
-            undo.rule.rule = this.rule;
-            undo.removePos = null;
-            return undo;
+            return new Undo(this.turn, this.isBlackTurn, this.boardStack, this.rule, this.ruleName, null);
         }
-        else{
-            const last = this.boardStack.pop();
-            cord = this.changeCordtoXY(last)
-            this.board[cord[0]][cord[1]] = EMPTYSTONE
-            if(this.isWin){
-                this.isWin = false;
-            }
-            else{
-                this.turn -= 1
-                this.isBlackTurn = !this.isBlackTurn;
-            }
-            const undo =  new Undo();
-            undo.currentTurn = this.isBlackTurn ? "b" : "w";
-            undo.boardStack = this.boardStack;
-            undo.period = this.turn;
-            undo.rule.ruleName = this.ruleName;
-            undo.rule.rule = this.rule;
-            undo.removePos = last;
-            return undo;
+        const last = this.boardStack.pop();
+        const cord = this.changeCordtoXY(last)
+        this.board[cord[0]][cord[1]] = EMPTYSTONE
+        if(this.isWin){
+            this.isWin = false;
+        } else{
+            this.turn -= 1
+            this.isBlackTurn = !this.isBlackTurn;
         }
+        return new Undo(this.turn, this.isBlackTurn, this.boardStack, this.rule, this.ruleName, last);
     }
+
     function Omok2() {
         let omok = new Omok()
         return {

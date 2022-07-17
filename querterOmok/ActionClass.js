@@ -38,19 +38,19 @@
 
     }
 
-    function Forbid33(){
+    function Forbid33(period, currentTurn, boardStack, rule, ruleName) {
         Forbid.call(this, period, currentTurn, boardStack, rule, ruleName)
         this.code = 3;
         this.reason = "33";
     }
 
-    function Forbid44(){
+    function Forbid44(period, currentTurn, boardStack, rule, ruleName) {
         Forbid.call(this, period, currentTurn, boardStack, rule, ruleName)
         this.code = 4;
         this.reason = "44";
     }
 
-    function Forbid6(){
+    function Forbid6(period, currentTurn, boardStack, rule, ruleName) {
         Forbid.call(this, period, currentTurn, boardStack, rule, ruleName)
         this.code = 6;
         this.reason = "6";
@@ -68,17 +68,17 @@
         this.reason = "Stone is already existed"
     }
 
-    function Undo(){
+    function Undo(period, currentTurn, boardStack, rule, ruleName, removePos){
         this.status = "UNDO";
         this.code = -1;
-        this.currentTurn = "";
-        this.boardStack = [];
-        this.period = 0;
+        this.period = period;
+        this.currentTurn = currentTurn ? "b" : "w";
+        this.boardStack = boardStack;
         this.rule = {
-            "ruleName" : "",
-            "rule" : {},
+            "ruleName" : ruleName,
+            "rule" : rule
         }
-        this.removePos = "";
+        this.removePos = removePos;
     }
 
     module.exports = {

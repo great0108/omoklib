@@ -456,7 +456,7 @@
     }
 
     Omok.prototype.setRule = function(rules) {
-        if(turn !== 1) {
+        if(this.turn !== 1) {
             throw new Error("After first move, you can't change the rule");
         }
         if(typeof rules === "string") {
