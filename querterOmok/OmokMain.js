@@ -38,7 +38,7 @@
     }
 
     //33이나 44를 확인해야 하는지 검사
-    Omok.prototype.isCheckDouble = function(num) {
+    Omok.prototype.isCheckDouble = function(x, y, stone, num) {
         if(!this.isSetStone(x, y) || this.board[x][y] !== EMPTYSTONE) {
             return false
         } else if(this.isFive(x, y, stone) || this.isOverLine(x, y, stone)) {
@@ -51,7 +51,7 @@
 
     // 33 인지 검사
     Omok.prototype.isDoubleThree = function(x, y, stone) {
-        if(!this.isCheckDouble(3)) {
+        if(!this.isCheckDouble(x, y, stone, 3)) {
             return false
         }
         let countThree = 0
@@ -63,7 +63,7 @@
 
     // 44 인지 검사
     Omok.prototype.isDoubleFour = function(x, y, stone) {
-        if(!this.isCheckDouble(4)) {
+        if(!this.isCheckDouble(x, y, stone, 4)) {
             return false
         }
         let countFour = 0;
@@ -207,10 +207,10 @@
                 }
             }
             return "_"
-        }))
+        }).join("")).join("")
     }
 
-    Omok.prototype.changeCordtoXY = function(cord) {
+    Omok.prototype.changeCordToXY = function(cord) {
         cord = cord.toUpperCase();
         if(!cord.match(/^[A-Z]\d{1,2}$/)){
             return false
@@ -277,7 +277,7 @@
             return new Undo(this.turn, this.isBlackTurn, this.boardStack, this.rule, this.ruleName, null);
         }
         const last = this.boardStack.pop();
-        const cord = this.changeCordtoXY(last)
+        const cord = this.changeCordToXY(last)
         this.board[cord[0]][cord[1]] = EMPTYSTONE
         if(this.isWin){
             this.isWin = false;
@@ -299,32 +299,32 @@
 
             //돌을 배치합니다
             "putStone" : (cord) => {
-                const res = omok.changeCordToXY(cord);
-                return res ? omok.putStone(res) : new InvalidPosition()
+                const res = omok.changeCordToXY(cord)
+                return res ? omok.putStone(res[0], res[1]) : new InvalidPosition()
             },
 
             //해당 장소가 오목이 되는지 검사합니다
             "isFive" : (cord) => {
                 const res = omok.changeCordToXY(cord);
-                return res ? omok.isFive(res) : new InvalidPosition()
+                return res ? omok.isFive(res[0], res[1], omok.isBlackTurn ? BLACKSTONE : WHITESTONE) : new InvalidPosition()
             },
 
             //해당 장소가 장목(육목)이 되는지 검사합니다
             "isOverLine" : (cord) => {
                 const res = omok.changeCordToXY(cord);
-                return res ? omok.isOverLine(res) : new InvalidPosition()
+                return res ? omok.isOverLine(res[0], res[1], omok.isBlackTurn ? BLACKSTONE : WHITESTONE) : new InvalidPosition()
             },
 
             //해당 장소가 44가 되는지 확인합니다
             "isDoubleFour" : (cord) => {
                 const res = omok.changeCordToXY(cord);
-                return res ? omok.isDoubleFour(res) : new InvalidPosition()
+                return res ? omok.isDoubleFour(res[0], res[1], omok.isBlackTurn ? BLACKSTONE : WHITESTONE) : new InvalidPosition()
             },
 
             //해당 장소가 33이 되는지 확인합니다.
             "isDoubleThree" : (cord) => {
                 const res = omok.changeCordToXY(cord);
-                return res ? omok.isDoubleThree(res) : new InvalidPosition()
+                return res ? omok.isDoubleThree(res[0], res[1], omok.isBlackTurn ? BLACKSTONE : WHITESTONE) : new InvalidPosition()
             },
 
             //보드를 초기화합니다
