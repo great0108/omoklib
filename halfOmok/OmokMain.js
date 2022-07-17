@@ -6,12 +6,7 @@
     const WHITESTONE = 2;
     const BOARDSIZE = 15;
     const CODE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const DIRECTION = [
-        [1, 0],
-        [0, 1],
-        [1, 1],
-        [1, -1]
-    ]
+    const DIRECTION = [[1, 0], [0, 1], [1, 1], [1, -1]]
 
     function Omok() {
         this.turn = 1;
@@ -45,18 +40,10 @@
     * 착수 할 수 있는 위치인지 확인
     * @param {number} x
     * @param {number} y
+    * @return {boolean}
     */
     Omok.prototype.isSetStone = function(x, y) {
         return x >= 0 && y >= 0 && x < BOARDSIZE && y < BOARDSIZE
-    }
-
-    /**
-    * 비어있는지 확인
-    * @param {number} x
-    * @param {number} y
-    */
-    Omok.prototype.isEmpty = function(x, y) {
-        return this.isSetStone(x, y) && this.board[x][y] === EMPTYSTONE
     }
 
     /**
@@ -67,7 +54,7 @@
     * @return {boolean}
     */
     Omok.prototype.isDoubleThree = function(x, y, stone) {
-        if(!this.isEmpty(x, y)) {
+        if(!this.isSetStone(x, y) || this.board[x][y] !== EMPTYSTONE) {
             return false
         }
         else if(this.isFive(x, y, stone)) {
@@ -97,7 +84,7 @@
     * @return {boolean}
     */
     Omok.prototype.isDoubleFour = function(x, y, stone) {
-        if(!this.isEmpty(x, y)) {
+        if(!this.isSetStone(x, y) || this.board[x][y] !== EMPTYSTONE) {
             return false
         }
         else if(this.isFive(x, y, stone)) {
@@ -296,7 +283,7 @@
     Omok.prototype.checkFiveOrOverLine = function(x, y, stone, dir) {
         let dirs = dir === undefined ? [0, 1, 2, 3] : [dir]
         let isOverLine = false
-        if(!this.isEmpty(x, y)) {
+        if(!this.isSetStone(x, y) || this.board[x][y] !== EMPTYSTONE) {
             return 0
         }
         this.board[x][y] = stone
@@ -388,7 +375,7 @@
         return url;
     }
 
-    Omok.prototype.changeCordtoXY = function(cord) {
+    Omok.prototype.changeCordToXY = function(cord) {
         cord = cord.toUpperCase();
         if(!cord.match(/^[A-Z]\d{1,2}$/)){
             return false
@@ -427,7 +414,7 @@
         if(!this.isSetStone(x, y)) {
             return new InvalidPosition()
         }
-        else if(!this.isEmpty(x, y)) {
+        else if(this.board[x][y] !== EMPTYSTONE) {
             return new Occupied()
         }
         else if(this.isDoubleThree(x, y, currentStone)) {
@@ -451,7 +438,7 @@
         }
         this.turn += 1
         this.isBlackTurn = !this.isBlackTurn
-        completeMove = new PutComplete()
+        let completeMove = new PutComplete()
         return this.setMove(completeMove)
     }
 
@@ -522,7 +509,7 @@
         }
         else{
             const last = this.boardStack.pop();
-            cord = this.changeCordtoXY(last)
+            const cord = this.changeCordToXY(last)
             this.board[cord[0]][cord[1]] = EMPTYSTONE
             if(this.isWin){
                 this.isWin = false;
@@ -541,6 +528,7 @@
             return undo;
         }
     }
+
     function Omok2() {
         let omok = new Omok()
         return {
@@ -564,8 +552,8 @@
              * @return {InvalidPosition|Occupied|Forbid33|Forbid44|Forbid6|BlackWins|WhiteWins|PutComplete}
              */
             "putStone" : (cord) => {
-                const res = omok.changeCordToXY(cord);
-                return res ? omok.putStone(res) : new InvalidPosition()
+                const res = omok.changeCordToXY(cord)
+                return res ? omok.putStone(res[0], res[1]) : new InvalidPosition()
             },
 
             /**
@@ -575,7 +563,7 @@
              */
             "isFive" : (cord) => {
                 const res = omok.changeCordToXY(cord);
-                return res ? omok.isFive(res) : new InvalidPosition()
+                return res ? omok.isFive(res[0], res[1], omok.isBlackTurn ? BLACKSTONE : WHITESTONE) : new InvalidPosition()
             },
 
             /**
@@ -585,7 +573,7 @@
              */
             "isOverLine" : (cord) => {
                 const res = omok.changeCordToXY(cord);
-                return res ? omok.isOverLine(res) : new InvalidPosition()
+                return res ? omok.isOverLine(res[0], res[1], omok.isBlackTurn ? BLACKSTONE : WHITESTONE) : new InvalidPosition()
             },
 
             /**
@@ -595,7 +583,7 @@
              */
             "isDoubleFour" : (cord) => {
                 const res = omok.changeCordToXY(cord);
-                return res ? omok.isDoubleFour(res) : new InvalidPosition()
+                return res ? omok.isDoubleFour(res[0], res[1], omok.isBlackTurn ? BLACKSTONE : WHITESTONE) : new InvalidPosition()
             },
 
             /**
@@ -605,7 +593,7 @@
              */
             "isDoubleThree" : (cord) => {
                 const res = omok.changeCordToXY(cord);
-                return res ? omok.isDoubleThree(res) : new InvalidPosition()
+                return res ? omok.isDoubleThree(res[0], res[1], omok.isBlackTurn ? BLACKSTONE : WHITESTONE) : new InvalidPosition()
             },
 
             /**
