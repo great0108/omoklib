@@ -1,23 +1,23 @@
 (function() {
     "use strict"
-    const {Occupied, InvalidPosition, PutError, Forbid33, Forbid44, Forbid6, Forbid, BlackWins, WhiteWins, PutComplete, Undo} = require("./ActionClass");
+    const {Occupied, InvalidPosition, Forbid33, Forbid44, Forbid6, Forbid, BlackWins, WhiteWins, PutComplete, Undo} = require("./ActionClass");
     const EMPTYSTONE = 0;
     const BLACKSTONE = 1;
     const WHITESTONE = 2;
     const BOARDSIZE = 15;
     const CODE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const DIRECTION = [[1, 0], [0, 1], [1, 1], [1, -1]]
+    const RULE = {
+        "renju" : {"sixWin" : [false,true], "allow6" : [false,true], "allow44" : [false,true], "allow33" : [false,true]},
+        "normal" : {"sixWin" : [false,false], "allow6" : [true,true], "allow44" : [true,true], "allow33" : [false,false]},
+        "gomoku" : {"sixWin" : [true,true], "allow6" : [true,true], "allow44" : [true,true], "allow33" : [true,true]}
+    }
 
     function Omok() {
         this.turn = 1;
         this.board = Array(BOARDSIZE).fill().map(v => Array(BOARDSIZE).fill(0));
         this.boardStack = [];
-        this.rule = {
-            "sixWin" : [false,true],
-            "allow6" : [false,true],
-            "allow44" : [false,true],
-            "allow33" : [false,true]
-        }
+        this.rule = RULE["renju"]
         this.ruleName = "renju";
         this.isBlackTurn = true;
         this.isWin = false
@@ -56,7 +56,7 @@
         }
         let countThree = 0
         for(let i = 0; i <= 3; i++) {
-            if(this.isOpenThree(x, y, stone, i)) {
+            if(this.isOpenThreeOrFour(x, y, stone, dir, 3)) {
                 countThree += 1
             }
         }
@@ -72,14 +72,14 @@
         for(let i = 0; i <= 3; i++){
             if(this.isOpenFour(x, y, stone, i) === 2){
                 countFour += 2;
-            } else if(this.isFour(x, y, stone, i)){
+            } else if(this.isOpenThreeOrFour(x, y, stone, dir, 4)){
                 countFour += 1;
             }
         }
         return countFour >= 2;
     }
 
-    // 열린 3인지 또는 4인지 검사 (4는 닫힌거든 열린거든 상관 무)
+    // 열린 3인지 또는 4인지 검사 (4는 닫힌거든 열린거든 상관 무, 열린 3 정의는 꺼무위키 참고)
     Omok.prototype.isOpenThreeOrFour = function(x, y, stone, dir, num) {
         this.board[x][y] = stone
         let step = DIRECTION[dir]
@@ -105,19 +105,9 @@
         return false
     }
 
-    // 열린 3인지 검사 열린 3 정의는 꺼무위키 참고
-    Omok.prototype.isOpenThree = function(x, y, stone, dir) {
-        return this.isOpenThreeOrFour(x, y, stone, dir, 3)
-    }
-
     //거짓금수 체크용
     Omok.prototype.checkFakeThree = function(x, y, stone, dir) {
         return (this.isOpenFour(x, y, stone, dir) === 1) && !this.isDoubleFour(x, y, stone) && !this.isDoubleThree(x, y, stone);
-    }
-
-    //4인지 검사 (닫힌거든 열린거든 상관 무)
-    Omok.prototype.isFour = function(x, y, stone, dir) {
-        return this.isOpenThreeOrFour(x, y, stone, dir, 4)
     }
 
     //열린 4 검사, 2일 때 44임  (O,X,O,ㅁ,X,O ㅁ 자리를 검사하기 위해서)  1인 경우는 열린 3을 검사하기 위해 사용
@@ -239,24 +229,6 @@
         return [y,x];
     }
 
-    Omok.prototype.setError = function(err) {
-        err.period = this.turn;
-        err.currentTurn = this.isBlackTurn ? "b" : "w"
-        err.boardStack = this.boardStack;
-        err.rule.rule = this.rule;
-        err.rule.ruleName = this.ruleName;
-        return err;
-    }
-
-    Omok.prototype.setMove = function(move) {
-        move.period = this.turn;
-        move.currentTurn = this.isBlackTurn ? "b" : "w"
-        move.boardStack = this.boardStack;
-        move.rule.rule = this.rule;
-        move.rule.ruleName = this.ruleName;
-        return move;
-    }
-
     // 위치(y, x)로 돌 놓기
     Omok.prototype.putStone = function(x, y) {
         let currentStone = this.isBlackTurn ? BLACKSTONE : WHITESTONE
@@ -265,60 +237,33 @@
         } else if(this.board[x][y] !== EMPTYSTONE) {
             return new Occupied()
         } else if(this.isDoubleThree(x, y, currentStone)) {
-            let error = new Forbid33()
-            return this.setError(error)
+            return new Forbid33(this.turn, this.isBlackTurn, this.boardStack, this.rule, this.ruleName)
         } else if(this.isDoubleFour(x, y, currentStone)) {
-            let error = new Forbid44()
-            return this.setError(error)
+            return new Forbid44(this.turn, this.isBlackTurn, this.boardStack, this.rule, this.ruleName)
         } else if(this.isOverLine(x, y, currentStone)) {
-            let error = new Forbid6()
-            return this.setError(error)
+            return new Forbid6(this.turn, this.isBlackTurn, this.boardStack, this.rule, this.ruleName)
         }
         let isWin = this.isFive(x, y, currentStone)
         this.board[x][y] = currentStone
         this.boardStack.push(CODE[x] + (y+1))
-        if(isWin) {
-            let winMove = currentStone === BLACKSTONE ? new BlackWins() : new WhiteWins();
-            return this.setMove(winMove)
+        if(isWin && currentStone === BLACKSTONE) {
+            return new BlackWins(this.turn, this.isBlackTurn, this.boardStack, this.rule, this.ruleName)
+        } else if(isWin && currentStone === WHITESTONE) {
+            return new WhiteWins(this.turn, this.isBlackTurn, this.boardStack, this.rule, this.ruleName)
         }
         this.turn += 1
         this.isBlackTurn = !this.isBlackTurn
-        completeMove = new PutComplete()
-        return this.setMove(completeMove)
+        return new PutComplete(this.turn, this.isBlackTurn, this.boardStack, this.rule, this.ruleName)
     }
 
     Omok.prototype.setRule = function(rules) {
         if(turn !== 1) {
             throw new Error("After first move, you can't change the rule");
         } else if(typeof rules === "string") {
-            if(rules === "renju") {
-                this.rule = {
-                    "sixWin" : [false,true],
-                    "allow6" : [false,true],
-                    "allow44" : [false,true],
-                    "allow33" : [false,true]
-                };
-                this.ruleName = "renju"
-            }
-            else if(rules === "normal") {
-                this.rule = {
-                    "sixWin" : [false,false],
-                    "allow6" : [true,true],
-                    "allow44" : [true,true],
-                    "allow33" : [false,false]
-                };
-                this.ruleName = "normal"
-            }
-            else if(rules === "gomoku") {
-                this.rule = {
-                    "sixWin" : [true,true],
-                    "allow6" : [true,true],
-                    "allow44" : [true,true],
-                    "allow33" : [true,true]
-                };
-                this.ruleName = "gomoku"
-            }
-            else {
+            if(RULE.hasOwnProperty(rules)) {
+                this.rule = RULE[rules]
+                this.ruleName = rules
+            } else {
                 throw new Error("No such rule exists")
             }
         } else {
@@ -371,115 +316,61 @@
     function Omok2() {
         let omok = new Omok()
         return {
-            /**
-             * 현재 보드판 상태를 가져옵니다
-             * 0비어있음 1 흑 2 백
-             * @return {*[]}
-             */
+            //현재 보드판 상태를 가져옵니다
             "getBoard" : () => omok.board.map(v => v.slice(0)),
 
-            /**
-             * 룰을 설정합니다
-             * 커스텀의 경우 반드시 sixWin, allow6, allow44 allow33이 포함되어야 합니다
-             * @param rules
-             */
+            //룰을 설정합니다 (커스텀의 경우 반드시 sixWin, allow6, allow44 allow33이 포함되어야 합니다)
             "setRule" : (rule) => omok.setRule(rule),
 
-            /**
-             * 돌을 배치합니다
-             * @param {string} cord
-             * @return {InvalidPosition|Occupied|Forbid33|Forbid44|Forbid6|BlackWins|WhiteWins|PutComplete}
-             */
+            //돌을 배치합니다
             "putStone" : (cord) => {
                 const res = omok.changeCordToXY(cord);
                 return res ? omok.putStone(res) : new InvalidPosition()
             },
 
-            /**
-             * 해당 장소가 오목이 되는지 검사합니다
-             * @param {string} cord
-             * @return {boolean}
-             */
+            //해당 장소가 오목이 되는지 검사합니다
             "isFive" : (cord) => {
                 const res = omok.changeCordToXY(cord);
                 return res ? omok.isFive(res) : new InvalidPosition()
             },
 
-            /**
-             * 해당 장소가 장목(육목)이 되는지 검사합니다
-             * @param {string} cord
-             * @return {boolean}
-             */
+            //해당 장소가 장목(육목)이 되는지 검사합니다
             "isOverLine" : (cord) => {
                 const res = omok.changeCordToXY(cord);
                 return res ? omok.isOverLine(res) : new InvalidPosition()
             },
 
-            /**
-             * 해당 장소가 44가 되는지 확인합니다
-             * @param {string} cord
-             * @return {boolean}
-             */
+            //해당 장소가 44가 되는지 확인합니다
             "isDoubleFour" : (cord) => {
                 const res = omok.changeCordToXY(cord);
                 return res ? omok.isDoubleFour(res) : new InvalidPosition()
             },
 
-            /**
-             * 해당 장소가 33이 되는지 확인합니다.
-             * @param {string} cord
-             * @return {boolean}
-             */
+            //해당 장소가 33이 되는지 확인합니다.
             "isDoubleThree" : (cord) => {
                 const res = omok.changeCordToXY(cord);
                 return res ? omok.isDoubleThree(res) : new InvalidPosition()
             },
 
-            /**
-             * 보드를 초기화합니다
-             * @return void
-             */
+            //보드를 초기화합니다
             "reset" : () => omok.reset(),
 
-            /**
-             * 되돌리기
-             * @return {Undo}
-             */
+            //되돌리기
             "undo" : () => omok.undo(),
 
-            /**
-             * 현재 오목판 이미지를 가져옵니다
-             * showForbid가 true라면 금수까지 표시해줍니다
-             * @param {boolean} showForbid
-             * @return {string}
-             */
+            //현재 오목판 이미지를 가져옵니다 (showForbid가 true라면 금수까지 표시해줍니다)
             "getImage" : (showForbid) => omok.getImage(showForbid),
 
-            /**
-             * 현재 오목판 이미지를 착수 순서까지 표시하여 가져옵니다
-             * showForbid가 true라면 금수까지 표시해줍니다
-             * @param {boolean}showForbid
-             * @return {string}
-             */
+            //현재 오목판 이미지를 착수 순서까지 표시하여 가져옵니다 (showForbid가 true라면 금수까지 표시해줍니다)
             "getImageWithMove" : (showForbid) => omok.getImage(showForbid) + "/" + omok.boardStack.join(","),
 
-            /**
-             * 현재 오목 기보를 확인합니다.
-             * @return {*[]}
-             */
+            //현재 오목 기보를 확인합니다.
             "getHistory" : () => omok.boardStack,
 
-            /**
-             * 현재 누구 차례인지 가져옵니다
-             * b : 흑 w : 백
-             * @return {"b","w"}
-             */
+            //현재 누구 차례인지 가져옵니다
             "getTurn" : () => omok.isBlackTurn ? "b" : "w",
 
-            /**
-             *착수가 몇번째인지 구합니다.
-             * @return {number}
-             */
+            //착수가 몇번째인지 구합니다.
             "getPeriod" : () => omok.turn
         }
     }
