@@ -5,7 +5,7 @@
     const BLACKSTONE = 1;
     const WHITESTONE = 2;
     const BOARDSIZE = 15;
-    const CODE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const CODE = "ABCDEFGHIJKLMNOP";
     const DIRECTION = [[1, 0], [0, 1], [1, 1], [1, -1]]
     const RULE = {
         "renju" : {"sixWin" : [false,true], "allow6" : [false,true], "allow44" : [false,true], "allow33" : [false,true]},
@@ -70,6 +70,7 @@
         }
         return countFour >= 2;
     }
+    //특정 방향으로 움직인 좌표 계산
     Omok.prototype.nextCord = function(cord, sign, dir) {
         return [cord[0] + DIRECTION[dir][0] * sign, cord[1] + DIRECTION[dir][1] * sign]
     }

@@ -275,8 +275,10 @@
         return {
             //현재 보드판 상태를 가져옵니다
             "getBoard" : () => omok.board.map(v => v.slice(0)),
+
             //룰을 설정합니다 (커스텀의 경우 반드시 sixWin, allow6, allow44 allow33이 포함되어야 합니다)
             "setRule" : (rule) => omok.setRule(rule),
+            
             //돌을 배치합니다
             "putStone" : (cord) => {
                 const res = omok.changeCordToXY(cord)
@@ -304,16 +306,22 @@
             },
             //보드를 초기화합니다
             "reset" : () => omok.reset(),
+
             //되돌리기
             "undo" : () => omok.undo(),
+
             //현재 오목판 이미지를 가져옵니다 (showForbid가 true라면 금수까지 표시해줍니다)
             "getImage" : (showForbid) => omok.getImage(showForbid),
+
             //현재 오목판 이미지를 착수 순서까지 표시하여 가져옵니다 (showForbid가 true라면 금수까지 표시해줍니다)
             "getImageWithMove" : (showForbid) => omok.getImage(showForbid) + "/" + omok.boardStack.join(","),
+
             //현재 오목 기보를 확인합니다.
             "getHistory" : () => omok.boardStack,
+
             //현재 누구 차례인지 가져옵니다
             "getTurn" : () => omok.isBlackTurn ? "b" : "w",
+
             //착수가 몇번째인지 구합니다.
             "getPeriod" : () => omok.turn
         }
