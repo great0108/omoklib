@@ -99,10 +99,10 @@
     }
     /**
      * 특정 방향으로 움직인 좌표 계산
-     * @param {array} cord
+     * @param {number[]} cord
      * @param {-1,1} sign
      * @param {0,1,2,3} dir
-     * @return {array} 움직인 좌표
+     * @return {number[]} 움직인 좌표
      */
     Omok.prototype.nextCord = function(cord, sign, dir) {
         return [cord[0] + DIRECTION[dir][0] * sign, cord[1] + DIRECTION[dir][1] * sign]
@@ -383,7 +383,7 @@
 
             /**
              * 룰을 설정합니다
-             * 커스텀의 경우 반드시 sixWin, allow6, allow44 allow33이 포함되어야 합니다
+             * 커스텀의 경우 반드시 sixWin, allow6, allow44, allow33이 포함되어야 합니다
              * @param {string|object} rules
              */
             "setRule" : (rule) => omok.setRule(rule),
